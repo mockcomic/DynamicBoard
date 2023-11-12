@@ -1,19 +1,22 @@
 # Dynamic VestaBoard
-#### Video Demo  
-<https://youtu.be/jgEpNnlIW8o>
-#### Description 
-Send messages to your Vestboard on a timed interval.
-#### How to install:
-1. Clone the package and `cd server`
 
-2. Create an `.env` file in `/server` directory with the following keys: `PORT`, `key`, `secret`, `subId`. <br> You can obtain your `key`, `secret` and `subId` by visiting Vestaboard's development website(<https://docs.vestaboard.com/methods>).
+## Video Demo
+[Watch the demo here](https://youtu.be/jgEpNnlIW8o)
 
-2. Run `npm install`, then `npm start`
+## Description
+Dynamic VestaBoard allows you to send messages to your Vestaboard at timed intervals, enhancing communication efficiency.
 
-3. Launch web browser and connect to `http://localhost:4000`.
+## Installation Instructions
+1. **Clone the Repository**: Clone the package repository and navigate to the server directory:
+-   `git clone [repository-link]`
+-  `cd server`
 
-#### TODO
-- Allow for template literal strings.
-- Delayed messages.
-- Seperate messages array.
-- Clean up frontend.
+2. **Environment Setup**: Create a `.env` file in the `server` directory with the necessary keys:
+- `PORT` - The port number for your server.
+- `key`, `secret`, `subId` - These are Vestaboard specific credentials. Obtain them from the [Vestaboard Development Website](https://docs.vestaboard.com/methods).
+
+3. **Install Dependencies and Run the Server**:
+   npm install
+   npm start
+
+4. **Access the Application**: Open your web browser and connect to `http://localhost:4000`.
