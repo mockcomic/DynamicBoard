@@ -40,6 +40,7 @@ const configCheck = () => {
 };
 
 const checkVariable = string => {
+	console.log(string);
 	const indexStart = string.indexOf('{');
 	const indexEnd = string.indexOf('}');
 
@@ -84,25 +85,38 @@ const updateMessage = (req, res) => {
 	});
 };
 
+const getCurrentMessage = async () => {
+	await fetch('https://rw.vestaboard.com/', {
+		headers: {
+			'Content-Type': 'application/json',
+			'X-Vestaboard-Read-Write-Key': apiWriteKey,
+		},
+		method: 'GET',
+	}).then(res => {
+		return res.json();
+	});
+};
+
 const writeGridVestaBoard = async data => {
-	try {
-		const res = await fetch(`https://rw.vestaboard.com/`, {
-			method: 'POST',
-			body: `${data}`,
-			headers: {
-				'X-Vestaboard-Read-Write-Key': apiWriteKey,
-			},
-		});
-		console.log(await res.json());
-	} catch (error) {
-		console.warn(error);
-	}
+	await fetch('https://rw.vestaboard.com/', {
+		body: JSON.stringify(data),
+		headers: {
+			'Content-Type': 'application/json',
+			'X-Vestaboard-Read-Write-Key': apiWriteKey,
+		},
+		method: 'POST',
+	}).then(res => {
+		console.log(res);
+		console.log(res.body);
+	});
 };
 
 const writeTextVestaBoard = data => {
 	fetch(`https://platform.vestaboard.com/subscriptions/${subId}/message`, {
 		method: 'POST',
-		body: `{"text":"${data}"}`,
+		body: JSON.stringify({
+			text: data,
+		}),
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
 			'X-Vestaboard-Api-Key': `${apiCloudKey}`,
@@ -135,6 +149,8 @@ const loopMessages = async () => {
 				writeGridVestaBoard(data.messages[index].data);
 			}
 			if (data.messages[index].type == 'text') {
+				console.log(data.messages);
+				console.log('index', index);
 				const msg = checkVariable(data.messages[index].data);
 				writeTextVestaBoard(msg);
 			}
@@ -166,6 +182,9 @@ const update = () => {
 update();
 
 module.exports = {
+	checkVariable,
 	getAllMessages,
 	updateMessage,
+	writeGridVestaBoard,
+	writeTextVestaBoard,
 };

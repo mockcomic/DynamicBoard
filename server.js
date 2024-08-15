@@ -7,7 +7,9 @@ const app = express();
 const routes = require('./routes/routes');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const os = require('os');
 
+const port = process.env.PORT;
 app.use(express.static('public'));
 
 app.use(
@@ -29,6 +31,6 @@ app.use((req, res, next) => {
 // routes
 app.use('/', routes);
 
-app.listen(process.env.PORT, () =>
-	console.log(`Server started at http://localhost:${process.env.PORT}`)
-);
+app.listen(port, () => {
+	console.log(`Server is running on http://localhost:${port}`);
+});

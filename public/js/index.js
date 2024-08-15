@@ -10,70 +10,70 @@ let isConnected = false;
 let data = {};
 
 const codex = {
-	A: '1',
-	B: '2',
-	C: '3',
-	D: '4',
-	E: '5',
-	F: '6',
-	G: '7',
-	H: '8',
-	I: '9',
-	J: '10',
-	K: '11',
-	L: '12',
-	M: '13',
-	N: '14',
-	O: '15',
-	P: '16',
-	Q: '17',
-	R: '18',
-	S: '19',
-	T: '20',
-	U: '21',
-	V: '22',
-	W: '23',
-	X: '24',
-	Y: '25',
-	Z: '26',
-	1: '27',
-	2: '28',
-	3: '29',
-	4: '30',
-	5: '31',
-	6: '32',
-	7: '33',
-	8: '34',
-	9: '35',
-	0: '36',
-	'!': '37',
-	'@': '38',
-	'#': '39',
-	$: '40',
-	'(': '41',
-	')': '42',
-	'-': '44',
-	'+': '46',
-	'&': '47',
-	'=': '48',
-	';': '49',
-	':': '50',
-	"'": '52',
-	DoubleQuote: '53',
-	'%': '54',
-	',': '55',
-	'.': '56',
-	'/': '59',
-	'?': '60',
-	'°': '62',
-	PoppyRed: '63',
-	Orange: '64',
-	Yellow: '65',
-	Green: '66',
-	ParisBlue: '67',
-	Violet: '68',
-	White: '69',
-	'': '0',
+	A: 1,
+	B: 2,
+	C: 3,
+	D: 4,
+	E: 5,
+	F: 6,
+	G: 7,
+	H: 8,
+	I: 9,
+	J: 10,
+	K: 11,
+	L: 12,
+	M: 13,
+	N: 14,
+	O: 15,
+	P: 16,
+	Q: 17,
+	R: 18,
+	S: 19,
+	T: 20,
+	U: 21,
+	V: 22,
+	W: 23,
+	X: 24,
+	Y: 25,
+	Z: 26,
+	1: 27,
+	2: 28,
+	3: 29,
+	4: 30,
+	5: 31,
+	6: 32,
+	7: 33,
+	8: 34,
+	9: 35,
+	0: 36,
+	'!': 37,
+	'@': 38,
+	'#': 39,
+	$: 40,
+	'(': 41,
+	')': 42,
+	'-': 44,
+	'+': 46,
+	'&': 47,
+	'=': 48,
+	';': 49,
+	':': 50,
+	"'": 52,
+	DoubleQuote: 53,
+	'%': 54,
+	',': 55,
+	'.': 56,
+	'/': 59,
+	'?': 60,
+	'°': 62,
+	PoppyRed: 63,
+	Orange: 64,
+	Yellow: 65,
+	Green: 66,
+	ParisBlue: 67,
+	Violet: 68,
+	White: 69,
+	'': 0,
 };
 
 const pushData = async data => {
@@ -99,6 +99,25 @@ const deleteEntry = index => {
 		loadData(data);
 	} catch (error) {
 		console.log(error);
+	}
+};
+
+const sendEntry = async data => {
+	try {
+		const response = await fetch(`${ipAddress}api/send`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(data),
+		});
+		if (response.ok) {
+			console.log('Entry sent successfully');
+		} else {
+			console.log('Failed to send entry');
+		}
+	} catch (err) {
+		console.log(err);
 	}
 };
 
@@ -135,9 +154,16 @@ const createCard = (element, index) => {
 	del.innerText = 'Delete';
 	del.onclick = () => deleteEntry(index);
 
+	const send = document.createElement('a');
+	send.classList.add('card-footer-item');
+	send.innerText = 'Send to Board';
+	send.onclick = () => sendEntry(element);
+
 	//TODO add functionality to edit card in card
 	// footer.appendChild(save);
 	// footer.appendChild(edit);
+	footer.appendChild(send);
+
 	footer.appendChild(del);
 
 	card.appendChild(cardContent);
@@ -332,7 +358,6 @@ const displayMessage = () => {
 				gridData[i][j + 1] != ' ' &&
 				gridData[i][j - 1] != ' '
 			) {
-				console.log('test');
 				message = message + ' ';
 			} else {
 				message = message + gridData[i][j];
