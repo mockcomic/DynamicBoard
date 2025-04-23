@@ -367,5 +367,15 @@ const displayMessage = () => {
 	return message;
 };
 
+// Legend Modal
+
+document.getElementById('legend-toggle-btn').onclick = function () {
+	document.getElementById('legend-modal').classList.add('is-active');
+};
+
+document.getElementById('close-legend-btn').onclick = function () {
+	document.getElementById('legend-modal').classList.remove('is-active');
+};
+
 createGrid();
 getData();

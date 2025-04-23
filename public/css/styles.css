@@ -1,40 +1,37 @@
 .grid {
-    display: grid;
-    grid-template-columns: repeat(22, 18px);
-    margin-top: 10px;
+	display: grid;
+	grid-template-columns: repeat(22, 18px);
+	margin-top: 10px;
 
+	width: 435px;
+	height: 200px;
+	margin-left: auto;
+	margin-right: auto;
+	background: rgba(0, 0, 0, 0.5);
 
-    width: 435px;
-    height: 200px;
-    margin-left: auto;
-    margin-right: auto;
-    background: rgba(0, 0, 0, .5);
-
-    border: 20px solid rgba(0, 0, 0, .75);
+	border: 20px solid rgba(0, 0, 0, 0.75);
 }
 
 .grid-item {
-    border: 1px solid black;
-    border-radius: 0px;
-    padding: 1px;
-    background: rgba(0, 0, 0, .5);
-    color: white;
-  /* font-size: 200%;
-  width: 100px; */
+	border: 1px solid black;
+	border-radius: 0px;
+	padding: 1px;
+	background: rgba(0, 0, 0, 0.5);
+	color: white;
 }
 
 .centered {
-    text-align: center;
+	text-align: center;
 }
 
 #messages {
-    margin: 50px;
+	margin: 50px;
 }
 
-.card{
-    background-color: #282c34;
+.card {
+	background-color: #282c34;
 }
 
 .whiteText {
-    color: white;
+	color: white;
 }

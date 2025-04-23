@@ -7,12 +7,27 @@ const {
 	writeTextVestaBoard,
 	checkVariable,
 } = require('../controllers/messageControllers');
+const fs = require('fs');
 
-const {
-	getAllMessages,
-	updateMessage,
-} = require('../controllers/messageControllers');
+const getAllMessages = async (req, res) => {
+	fs.readFile('config.json', (err, data) => {
+		if (err) {
+			res.status(400);
+		}
+		res.status(200).json(JSON.parse(data));
+	});
+};
 
+const updateMessage = (req, res) => {
+	const msg = JSON.stringify(req.body);
+
+	fs.writeFile('config.json', msg, err => {
+		if (err) {
+			res.status(400).json('Error updating JSON');
+		}
+		res.status(200).json('JSON data is saved.');
+	});
+};
 app.use(express.json());
 
 router.get('/api/', getAllMessages).put('/api/', updateMessage);

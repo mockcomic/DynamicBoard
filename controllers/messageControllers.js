@@ -1,9 +1,6 @@
 const fs = require('fs');
 
 const apiWriteKey = process.env.writeKey || null;
-const apiCloudKey = process.env.cloudKey || null;
-const apiSecret = process.env.secret || null;
-const subId = process.env.subId || null;
 
 let isLooping = false;
 let data = null;
@@ -17,7 +14,7 @@ const configCheck = () => {
 	fs.access(filePath, fs.constants.F_OK, err => {
 		const defaultConfig = {
 			isEnabled: true,
-			timer: 120000,
+			timer: 120000, // default 2 minutes
 			messages: [],
 		};
 		if (err) {
@@ -44,7 +41,7 @@ const checkVariable = string => {
 	const indexStart = string.indexOf('{');
 	const indexEnd = string.indexOf('}');
 
-	if (indexStart == -1 || indexEnd == -1) return string;
+	if (indexStart === -1 || indexEnd === -1) return string;
 
 	const left = string.slice(0, indexStart);
 	const right = string.slice(indexEnd + 1);
@@ -55,34 +52,15 @@ const checkVariable = string => {
 
 	const param = command.slice(paramStart + 1, paramEnd).split(',');
 	const functionName = command.slice(0, paramStart);
-	//todo need to return string with function removed
 
 	switch (functionName) {
 		case 'tillDate':
 			return left + `${FC.tillDate(param)}` + right;
 		case 'date':
 			return left + `${FC.date(param)}` + right;
+		default:
+			return string;
 	}
-};
-
-const getAllMessages = async (req, res) => {
-	fs.readFile('config.json', (err, data) => {
-		if (err) {
-			res.status(400);
-		}
-		res.status(200).json(JSON.parse(data));
-	});
-};
-
-const updateMessage = (req, res) => {
-	const msg = JSON.stringify(req.body);
-
-	fs.writeFile('config.json', msg, err => {
-		if (err) {
-			res.status(400).json('Error updating JSON');
-		}
-		res.status(200).json('JSON data is saved.');
-	});
 };
 
 const getCurrentMessage = async () => {
@@ -92,72 +70,81 @@ const getCurrentMessage = async () => {
 			'X-Vestaboard-Read-Write-Key': apiWriteKey,
 		},
 		method: 'GET',
-	}).then(res => {
-		return res.json();
-	});
+	}).then(res => res.json());
 };
 
-const writeGridVestaBoard = async data => {
-	await fetch('https://rw.vestaboard.com/', {
-		body: JSON.stringify(data),
+const writeGridVestaBoard = data => {
+	fetch('https://rw.vestaboard.com/', {
+		body: data,
 		headers: {
 			'Content-Type': 'application/json',
 			'X-Vestaboard-Read-Write-Key': apiWriteKey,
 		},
 		method: 'POST',
 	}).then(res => {
-		console.log(res);
-		console.log(res.body);
+		console.log(`${res.status} ${res.statusText}`);
 	});
 };
 
 const writeTextVestaBoard = data => {
-	fetch(`https://platform.vestaboard.com/subscriptions/${subId}/message`, {
-		method: 'POST',
+	fetch('https://rw.vestaboard.com/', {
 		body: JSON.stringify({
 			text: data,
 		}),
 		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-			'X-Vestaboard-Api-Key': `${apiCloudKey}`,
-			'X-Vestaboard-Api-Secret': `${apiSecret}`,
+			'Content-Type': 'application/json',
+			'X-Vestaboard-Read-Write-Key': apiWriteKey,
 		},
+		method: 'POST',
 	}).then(res => {
-		console.log(res);
-		console.log(res.body);
+		console.log(`${res.status} ${res.statusText}`);
 	});
 };
 
-const loopMessages = async () => {
-	setInterval(async () => {
-		let index;
+const processMessages = async () => {
+	let index;
 
-		if (!data.isEnabled) {
-			isLooping = false;
-			return;
+	if (!data.isEnabled) {
+		isLooping = false;
+		return;
+	}
+
+	if (lastMsg === null) {
+		index = 0;
+	} else {
+		index = lastMsg + 1 > data.messages.length - 1 ? 0 : lastMsg + 1;
+	}
+
+	if (data.messages.length > 0) {
+		console.log(data.timer);
+
+		if (data.messages[index].type === 'grid') {
+			writeGridVestaBoard(data.messages[index].data);
 		}
-
-		if (lastMsg == null) {
-			index = 0;
-		} else {
-			index = lastMsg + 1 > data.messages.length - 1 ? 0 : lastMsg + 1;
+		if (data.messages[index].type === 'text') {
+			const msg = checkVariable(data.messages[index].data);
+			writeTextVestaBoard(msg);
 		}
+	}
 
-		if (!data.messages.length == 0) {
-			console.log(data.messages[index].type);
-			if (data.messages[index].type == 'grid') {
-				writeGridVestaBoard(data.messages[index].data);
-			}
-			if (data.messages[index].type == 'text') {
-				console.log(data.messages);
-				console.log('index', index);
-				const msg = checkVariable(data.messages[index].data);
-				writeTextVestaBoard(msg);
-			}
+	lastMsg = index;
+};
+
+const loopMessages = () => {
+	if (isLooping) return; // Prevent starting multiple loops
+
+	isLooping = true;
+
+	const loop = async () => {
+		await processMessages();
+
+		// Set the next loop after the configured timer
+		if (data && data.isEnabled) {
+			setTimeout(loop, data.timer);
 		}
+	};
 
-		lastMsg = index;
-	}, data.timer);
+	loop(); // Start the loop
 };
 
 const update = () => {
@@ -172,19 +159,15 @@ const update = () => {
 
 			if (data.isEnabled && !isLooping) {
 				loopMessages();
-
-				isLooping = true;
 			}
 		});
-	}, 5000);
+	}, 5000); // Check for changes every 5 seconds
 };
 
 update();
 
 module.exports = {
 	checkVariable,
-	getAllMessages,
-	updateMessage,
 	writeGridVestaBoard,
 	writeTextVestaBoard,
 };

@@ -1,100 +1,124 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<title>Dynamic VestaBoard</title>
+		<meta name="description" content="" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link
+			rel="stylesheet"
+			href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
+		/>
+		<link rel="stylesheet" href="./css/styles.css" />
+		<link rel="manifest" href="manifest.json" />
+	</head>
 
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title></title>
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
-    <link rel="stylesheet" href="./css/styles.css">
-    <link rel="manifest" href="manifest.json">
-</head>
+	<body>
+		<section class="has-text-centered" style="padding: 20px">
+			<p class="title is-2">Dynamic VestaBoard</p>
+		</section>
 
-<body>
-<!-- 
-    <nav class="navbar" role="navigation" aria-label="main navigation">
-        <div class="navbar-brand">
-            <a class="navbar-item" href="">
-                <img src="https://bulma.io/images/bulma-logo.png" width="112" height="28">
-            </a>
-        </div>
+		<!-- Grid layout -->
+		<div  class="has-text-centered">
+			<div id="grid" class="grid"></div>
+			<div class="buttons is-centered" style="margin-top: 20px">
+				<button class="button is-primary" onclick="submitGridData()">
+					Submit
+				</button>
+				<button class="button is-warning" onclick="clearGrid()">Clear</button>
+			</div>
+		</div>
 
-        <div class="navbar-menu">
-            <div class="navbar-start">
-                <a class="navbar-item">
-                    Home
-                </a>
+		<div class="container is-fluid">
+			<!-- Text Input -->
+			<div class="box" style="padding: 20px; margin-top: 20px">
+				<input
+					id="textData"
+					class="input is-primary"
+					placeholder="Auto format"
+				/>
+				<div style="padding-top: 10px">
+					<button class="button is-link" onclick="submitTextData()">
+						Submit
+					</button>
+				</div>
+			</div>
 
-                <a class="navbar-item">
-                    Documentation
-                </a>
+			<!-- Timer Input and Enabled checkbox -->
+			<div class="box" style="padding: 20px">
+				<!-- Timer Input -->
+				<div class="field has-addons" style="margin-bottom: 10px">
+					<div class="control">
+						<input type="number" id="timerInput" min="1" class="input" />
+					</div>
+					<div class="control">
+						<a id="timerInput-btn" class="button is-info"
+							>Update time in minutes</a
+						>
+					</div>
+				</div>
 
-            </div>
-        </div>
-    </nav> -->
+				<!-- Enabled checkbox next to the Update button -->
+				<div class="field has-addons is-align-items-center">
+					<div class="control">
+						<label
+							class="checkbox has-text-weight-semibold"
+							style="font-size: 18px"
+						>
+							<input
+								type="checkbox"
+								id="isEnabled"
+								style="transform: scale(1.5); margin-right: 10px"
+							/>
+							<span>Enabled</span>
+						</label>
+					</div>
+				</div>
+			</div>
 
+			<!-- Legend Trigger Button -->
+			<div class="buttons is-centered">
+				<button class="button is-info" id="legend-toggle-btn">
+					Show Legend
+				</button>
+			</div>
 
+			<!-- Flyout Legend Modal -->
+			<div class="modal" id="legend-modal">
+				<div class="modal-background"></div>
+				<div class="modal-content">
+					<div class="box" style="padding: 20px">
+						<p class="title is-4">Legend:</p>
+						<div class="content">
+							<p>
+								<strong>All functions must be wrapped with {}</strong>
+								<p>Example: {tillDate(12,25,2025)} days till Christmas</p>
+								
+							</p>
+							<ul>
+								<li class="has-border">
+									<strong>tillDate(dd,mm,yyyy)</strong><br />Returns how many
+									days till the date specified. Will count up after passing the
+									date.
+								</li>
+								<li class="has-border">
+									<strong>date()</strong><br />Returns the current date.
+								</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+				<button
+					class="modal-close is-large"
+					id="close-legend-btn"
+					aria-label="close"
+				></button>
+			</div>
 
-    <section style="text-align:center; padding: 10px;">
-        <p class="title">Dynamic VestaBoard</p>
-    </section>
-
-    <!-- Grid layout -->
-    <div class='centered '>
-        <div id="grid" class="grid "></div>
-        <div style="padding: 10px">
-            <button class="button is-primary" onclick="submitGridData()"> Submit</button>
-            <button class="button is-warning" onclick="clearGrid()"> Clear</button>
-        </div>
-    </div>
-
-    <!-- Text Input -->
-    <div class="container is-fluid centered" style="padding: 20px">
-        <input id='textData' class="input is-focused " placeholder="Auto format">
-        <div style="padding: 10px">
-            <button class="button is-primary" onclick="submitTextData()"> Submit</button>
-        </div>
-    </div>
-
-    <!-- Timer Input -->
-    <div class="container is-fluid" style="padding: 10px">
-        <div class="container" style="margin-top:10px;">
-            <div class="field has-addons">
-                <div class="control">
-                    <input type="number" id="timerInput" min="1" class="input">
-                </div>
-                <div class="control">
-                    <a id="timerInput-btn" class="button is-primary">Update time in minutes</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Enabled checkbox -->
-    <div class="container is-fluid" style="margin:10px">
-        <label class="checkbox">
-            <input type="checkbox" id="isEnabled">
-            Enabled
-        </label>
-    </div>
-
-    <div id="messages" class=""></div>
-    <script type="text/javascript">
-        (function () {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker
-                    .register('./service-worker.js')
-                    .then(() => console.log('Service Worker registered successfully.'))
-                    .catch(error =>
-                        console.log('Service Worker registration failed:', error)
-                    );
-            }
-        })();
-    </script>
-    <script src="./js/index.js" async defer></script>
-
-</body>
-
+			<!-- Messages container -->
+			<div id="messages"></div>
+		</div>
+		<script src="./js/index.js" async defer></script>
+	</body>
 </html>
