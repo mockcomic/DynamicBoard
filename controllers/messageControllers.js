@@ -1,39 +1,37 @@
 const fs = require('fs');
 
-const apiWriteKey = process.env.writeKey || null;
+let apiWriteKey = null;
 
 let isLooping = false;
 let data = null;
+let intervalId = null;
 let lastMsg = null;
 
 const FC = require('./functionCalls');
 
 const configCheck = () => {
 	const filePath = './config.json';
+	const defaultConfig = {
+		isEnabled: true,
+		timer: 120000,
+		apiWriteKey: null,
+		messages: [],
+	};
 
-	fs.access(filePath, fs.constants.F_OK, err => {
-		const defaultConfig = {
-			isEnabled: true,
-			timer: 120000, // default 2 minutes
-			messages: [],
-		};
-		if (err) {
-			console.log('config.json does not exist, creating it...');
-			fs.writeFile(
-				filePath,
-				JSON.stringify(defaultConfig, null, 2),
-				writeErr => {
-					if (writeErr) {
-						console.error(`Error writing to ${filePath}`, writeErr);
-					} else {
-						console.log(`Successfully created ${filePath}`);
-					}
-				}
-			);
-		} else {
-			console.log('config.json already exists.');
-		}
-	});
+	if (!fs.existsSync(filePath)) {
+		console.log('config.json does not exist, creating it...');
+		fs.writeFileSync(filePath, JSON.stringify(defaultConfig, null, 2));
+		console.log(`Successfully created ${filePath}`);
+	} else {
+		console.log('config.json already exists.');
+	}
+
+	const config = JSON.parse(fs.readFileSync(filePath));
+	apiWriteKey = config.apiWriteKey || null;
+
+	if (!apiWriteKey) {
+		console.error('No API key found in config.json. Please add it.');
+	}
 };
 
 const checkVariable = string => {
@@ -131,37 +129,49 @@ const processMessages = async () => {
 };
 
 const loopMessages = () => {
-	if (isLooping) return; // Prevent starting multiple loops
+	if (isLooping) return;
 
 	isLooping = true;
 
 	const loop = async () => {
 		await processMessages();
 
-		// Set the next loop after the configured timer
 		if (data && data.isEnabled) {
-			setTimeout(loop, data.timer);
+			// Schedule next loop using the updated timer
+			intervalId = setTimeout(loop, data.timer);
+		} else {
+			isLooping = false;
+			clearTimeout(intervalId);
 		}
 	};
 
-	loop(); // Start the loop
+	loop();
 };
 
 const update = () => {
 	configCheck();
 
-	//* Check to see if any changes to the JSON file
 	setInterval(() => {
 		fs.readFile('config.json', (err, file) => {
 			if (err) throw err;
 
-			data = JSON.parse(file);
+			const newData = JSON.parse(file);
 
-			if (data.isEnabled && !isLooping) {
-				loopMessages();
+			const wasEnabled = data?.isEnabled;
+			const timerChanged = data?.timer !== newData.timer;
+
+			data = newData;
+
+			if (data.isEnabled) {
+				if (!wasEnabled || timerChanged) {
+					console.log(`Updating loop with new timer: ${data.timer}ms`);
+					clearTimeout(intervalId);
+					isLooping = false;
+					loopMessages();
+				}
 			}
 		});
-	}, 5000); // Check for changes every 5 seconds
+	}, 5000);
 };
 
 update();

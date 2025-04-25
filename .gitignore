@@ -28,3 +28,4 @@ yarn-debug.log*
 yarn-error.log*
 server/config.json
 /config.json
+release/config.json
