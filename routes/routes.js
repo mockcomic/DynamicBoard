@@ -28,6 +28,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/api/send', (req, res) => {
+	console.log(req.body);
 	if (req.body.type === 'grid') {
 		writeGridVestaBoard(JSON.parse(req.body.data));
 	} else if (req.body.type === 'text') {

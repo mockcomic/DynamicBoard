@@ -59,20 +59,20 @@ const codex = {
 	';': 49,
 	':': 50,
 	"'": 52,
-	DoubleQuote: 53,
+	'"': 53,
 	'%': 54,
 	',': 55,
 	'.': 56,
 	'/': 59,
 	'?': 60,
 	'°': 62,
-	PoppyRed: 63,
-	Orange: 64,
-	Yellow: 65,
-	Green: 66,
-	ParisBlue: 67,
-	Violet: 68,
-	White: 69,
+	'🟥': 63,
+	'🟧': 64,
+	'🟨': 65,
+	'🟩': 66,
+	'🟦': 67,
+	'🟪': 68,
+	'⬜️': 69,
 	'': 0,
 };
 
@@ -141,13 +141,13 @@ const createCard = (element, index) => {
 	const footer = document.createElement('footer');
 	footer.classList.add('card-footer');
 
-	const save = document.createElement('a');
-	save.classList.add('card-footer-item');
-	save.innerText = 'Save';
+	// const save = document.createElement('a');
+	// save.classList.add('card-footer-item');
+	// save.innerText = 'Save';
 
-	const edit = document.createElement('a');
-	edit.classList.add('card-footer-item');
-	edit.innerText = 'Edit';
+	// const edit = document.createElement('a');
+	// edit.classList.add('card-footer-item');
+	// edit.innerText = 'Edit';
 
 	const del = document.createElement('a');
 	del.classList.add('card-footer-item');
