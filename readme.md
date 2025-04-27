@@ -6,7 +6,7 @@
 
 ## Description
 
-Dynamic VestaBoard allows you to send messages to your Vestaboard at timed intervals, enhancing communication efficiency.
+Dynamicboard allows you to send messages to your Vestaboard at timed intervals, enhancing communication efficiency.
 
 ## Available Functions
 

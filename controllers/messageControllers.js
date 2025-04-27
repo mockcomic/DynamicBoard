@@ -7,7 +7,7 @@ let data = null;
 let intervalId = null;
 let lastMsg = null;
 
-const FC = require('./functionCalls');
+const { functionCalls } = require('./functionCalls');
 
 const configCheck = () => {
 	const filePath = './config.json';
@@ -35,30 +35,19 @@ const configCheck = () => {
 };
 
 const checkVariable = string => {
-	console.log(string);
-	const indexStart = string.indexOf('{');
-	const indexEnd = string.indexOf('}');
+	const match = string.match(/\{(.+?)\}/);
+	if (!match) return string;
 
-	if (indexStart === -1 || indexEnd === -1) return string;
+	const [placeholder, command] = match;
+	const [functionName, params] = command.split(/\((.+)\)/).filter(Boolean);
 
-	const left = string.slice(0, indexStart);
-	const right = string.slice(indexEnd + 1);
-
-	const command = string.slice(indexStart + 1, indexEnd);
-	const paramStart = command.indexOf('(');
-	const paramEnd = command.indexOf(')');
-
-	const param = command.slice(paramStart + 1, paramEnd).split(',');
-	const functionName = command.slice(0, paramStart);
-
-	switch (functionName) {
-		case 'tillDate':
-			return left + `${FC.tillDate(param)}` + right;
-		case 'date':
-			return left + `${FC.date(param)}` + right;
-		default:
-			return string;
+	if (functionCalls[functionName]) {
+		const result = functionCalls[functionName].callBack(params.split(','));
+		console.log(string.replace(placeholder, result));
+		return string.replace(placeholder, result);
 	}
+
+	return string;
 };
 
 const getCurrentMessage = async () => {

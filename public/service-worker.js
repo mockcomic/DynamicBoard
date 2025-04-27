@@ -1,5 +1,5 @@
 const CACHE_NAME = 'DyanmicBoard-site-cache--v1';
-const DATA_CACHE_NAME = 'DyanmicBoard-data-cache--v1';
+const DATA_CACHE_NAME = 'Dyanmicboard-data-cache--v1';
 const FILES_TO_CACHE = [
 	'/',
 	'/index.html',

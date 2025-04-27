@@ -258,7 +258,10 @@ const createInput = (i, j) => {
 	const input = document.createElement('input');
 
 	input.classList.add('grid-item');
-	input.maxLength = '1';
+
+	//* emoji are more then 1 char long
+	// input.maxLength = '1';
+
 	input.id = `${j},${i}`;
 
 	input.addEventListener('keydown', evt => {
@@ -348,21 +351,22 @@ const clearGrid = () => {
 	}
 };
 
+//TODO find a solution to have whitespace in the message
 const displayMessage = () => {
 	let message = '';
-	let isSpace = false;
+	let padding = 0;
 	for (let i = 0; i < gridY; i++) {
 		for (let j = 0; j < gridX; j++) {
-			if (
-				gridData[i][j] == '' &&
-				gridData[i][j + 1] != ' ' &&
-				gridData[i][j - 1] != ' '
-			) {
-				message = message + ' ';
-			} else {
-				message = message + gridData[i][j];
+			if (gridData[i][j] == '') {
+				console.log('empty');
+				padding++;
 			}
+
+			message = message + gridData[i][j];
 		}
+		console.log('padding', padding);
+		message = message.padStart(padding, ' ') + '\n';
+		padding = 0;
 	}
 	return message;
 };

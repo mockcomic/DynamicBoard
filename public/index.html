@@ -3,8 +3,7 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-		<title>Dynamic VestaBoard</title>
-		<meta name="description" content="" />
+		<title>Dynamicboard</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link
 			rel="stylesheet"
@@ -15,12 +14,12 @@
 	</head>
 
 	<body>
-		<section class="has-text-centered" style="padding: 20px">
-			<p class="title is-2">Dynamic VestaBoard</p>
+		<section class="section has-text-centered">
+			<p class="title is-2">Dynamicboard</p>
 		</section>
 
 		<!-- Grid layout -->
-		<div class="has-text-centered">
+		<section class="section">
 			<div id="grid" class="grid"></div>
 			<div class="buttons is-centered" style="margin-top: 20px">
 				<button class="button is-primary" onclick="submitGridData()">
@@ -28,18 +27,24 @@
 				</button>
 				<button class="button is-warning" onclick="clearGrid()">Clear</button>
 			</div>
-		</div>
+		</section>
 
-		<div class="container is-fluid">
+		<section class="container is-fluid">
 			<!-- Text Input -->
 			<div class="box" style="padding: 20px; margin-top: 20px">
+				<!-- Legend Trigger Button -->
+				<div class="buttons is-centered">
+					<button class="button is-info" id="legend-toggle-btn">
+						Show Legend
+					</button>
+				</div>
 				<input
 					id="textData"
 					class="input is-primary"
 					placeholder="Auto format"
 				/>
 				<div style="padding-top: 10px">
-					<button class="button is-link" onclick="submitTextData()">
+					<button class="button is-primary" onclick="submitTextData()">
 						Submit
 					</button>
 				</div>
@@ -53,7 +58,7 @@
 						<input type="number" id="timerInput" min="1" class="input" />
 					</div>
 					<div class="control">
-						<a id="timerInput-btn" class="button is-info"
+						<a id="timerInput-btn" class="button is-primary"
 							>Update time in minutes</a
 						>
 					</div>
@@ -75,13 +80,6 @@
 						</label>
 					</div>
 				</div>
-			</div>
-
-			<!-- Legend Trigger Button -->
-			<div class="buttons is-centered">
-				<button class="button is-info" id="legend-toggle-btn">
-					Show Legend
-				</button>
 			</div>
 
 			<!-- Flyout Legend Modal -->
@@ -120,10 +118,10 @@
 					aria-label="close"
 				></button>
 			</div>
+		</section>
 
-			<!-- Messages container -->
-			<div id="messages"></div>
-		</div>
+		<!-- Messages container -->
+		<section id="messages"></section>
 		<script src="./js/index.js" async defer></script>
 	</body>
 </html>
