@@ -235,7 +235,12 @@ const submitGridData = async () => {
 	const vestaData = await convertData();
 	const parsedData = JSON.stringify(vestaData);
 
-	data.messages.push({ type: 'grid', msg: vestaMsg, data: parsedData });
+	data.messages.push({
+		type: 'grid',
+		msg: vestaMsg,
+		data: parsedData,
+		isEvent: false,
+	});
 
 	pushData(data);
 	loadData(data);
@@ -380,6 +385,15 @@ document.getElementById('legend-toggle-btn').onclick = function () {
 document.getElementById('close-legend-btn').onclick = function () {
 	document.getElementById('legend-modal').classList.remove('is-active');
 };
+
+const toggleDateRangeVisibility = () => {
+	const isChecked = document.getElementById('toggleDateRange').checked;
+	const dateRangeInputs = document.getElementById('dateRangeText');
+	dateRangeInputs.style.display = isChecked ? 'inline-block' : 'none';
+};
+document.addEventListener('DOMContentLoaded', () => {
+	toggleDateRangeVisibility(); // Initialize visibility
+});
 
 createGrid();
 getData();

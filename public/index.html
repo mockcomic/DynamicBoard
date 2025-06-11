@@ -37,6 +37,9 @@
 					<button class="button is-info" id="legend-toggle-btn">
 						Show Legend
 					</button>
+					<button class="button is-info" id="event-toggle-btn">
+						Event Panel
+					</button>
 				</div>
 				<input
 					id="textData"
@@ -44,6 +47,20 @@
 					placeholder="Auto format"
 				/>
 				<div style="padding-top: 10px">
+					<div class="field">
+						<label class="label">Date Range</label>
+						<div class="field">
+							<label class="checkbox">
+								<input type="checkbox" id="toggleDateRange" onclick="toggleDateRangeVisibility()" />
+								Show Date Range
+							</label>
+						</div>
+						<div class="control" id="dateRangeText">
+							<input type="date" id="startDateText" class="input" />
+							<span style="margin: 0 10px;">to</span>
+							<input type="date" id="endDateText" class="input" />
+						</div>
+					</div>
 					<button class="button is-primary" onclick="submitTextData()">
 						Submit
 					</button>
@@ -115,6 +132,42 @@
 				<button
 					class="modal-close is-large"
 					id="close-legend-btn"
+					aria-label="close"
+				></button>
+			</div>
+			<!-- Event Modal -->
+			<div class="modal" id="event-modal">
+				<div class="modal-background"></div>
+				<div class="modal-content">
+					<div class="box" style="padding: 20px">
+						<p class="title is-4">Legend:</p>
+						<div class="content">
+							<div>
+								<strong>All functions must be wrapped with {}</strong>
+								<input></input>
+							</div>
+							<ul>
+								<li class="has-border">
+									<strong>tillDate(dd,mm,yyyy)</strong><br />Returns how many
+									days till the date specified. Will count up after passing the
+									date.
+								</li>
+								<li class="has-border">
+									<strong>date()</strong><br />Returns the current date.
+								</li>
+							</ul>
+							<div class="has-text-weight-semibold">
+								<strong
+									>You can use the following colored square emojis.</strong
+								>
+								<p>🟫🟩🟥🟦🟧🟪🟨⬜️</p>
+							</div>
+						</div>
+					</div>
+				</div>
+				<button
+					class="modal-close is-large"
+					id="close-event-btn"
 					aria-label="close"
 				></button>
 			</div>

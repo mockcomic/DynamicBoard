@@ -33,7 +33,3 @@ export const functionCalls = {
 		},
 	},
 };
-
-export default {
-	functionCalls,
-};
