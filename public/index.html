@@ -13,8 +13,11 @@
 		<link rel="manifest" href="manifest.json" />
 	</head>
 	<body>
-		<section class="container is-fluid has-text-centered">
-			<div class="box" style="padding: 20px; margin-top: 20px">
+		<section class="container" style="padding: 20px">
+			<div
+				class="box has-text-centered"
+				style="padding: 20px; margin-top: 20px"
+			>
 				<h1 class="title">Dynamicboard</h1>
 				<p class="subtitle">
 					A dynamic board for creating and managing events.
@@ -22,95 +25,165 @@
 			</div>
 		</section>
 
-		<section>
-			<div id="grid" class="grid"></div>
-		</section>
-
-		<!-- Grid layout -->
-		<section class="container is-fluid">
+		<!-- Grid Layout Info and Legend Button -->
+		<section class="container" style="padding: 20px">
 			<div class="box" style="padding: 20px; margin-top: 20px">
 				<h2 class="title is-4 has-text-centered">Grid Layout</h2>
 				<p class="subtitle is-6 has-text-centered">
 					Click on a cell to edit it. Use the buttons below to submit or clear
 					the grid.
 				</p>
-
 				<!-- Legend Trigger Button -->
 				<div class="buttons is-centered">
-					<button class="button is-info" id="legend-toggle-btn">
+					<button class="button is-info is-rounded" id="legend-toggle-btn">
 						Show Legend
 					</button>
-				</div>
-
-				<h2 class="title is-4 has-text-centered">Grid Controls</h2>
-				<div class="buttons is-centered" style="margin-top: 20px">
-					<button class="button is-primary" onclick="submitGridData()">
-						Submit
-					</button>
-					<button class="button is-warning" onclick="clearGrid()">Clear</button>
 				</div>
 			</div>
 		</section>
 
-		<section class="container is-fluid">
-			<!-- Text Input -->
+		<!-- Grid Display Section -->
+		<section class="container">
+			<div id="grid" class="grid"></div>
+		</section>
+
+		<!-- Grid Controls, Auto Text Formatting, Date Range, Timer Input -->
+		<section class="container" style="padding: 20px">
 			<div class="box" style="padding: 20px; margin-top: 20px">
-				<input
-					id="textData"
-					class="input is-primary"
-					placeholder="Auto format"
-				/>
-				<div style="padding-top: 10px">
+				<!-- Grid Controls -->
+				<div class="box has-background-grey-lighter">
+					<h2 class="title is-4 has-text-centered">Grid Controls</h2>
+					<div class="buttons is-centered" style="margin-top: 20px">
+						<button
+							class="button is-primary is-rounded"
+							onclick="submitGridData()"
+						>
+							Submit
+						</button>
+						<button class="button is-warning is-rounded" onclick="clearGrid()">
+							Clear
+						</button>
+					</div>
+				</div>
+
+				<!-- Auto Text Formatting -->
+				<div class="box has-background-grey-lighter">
+					<h2 class="title is-4 has-text-centered">Auto Text Formatting</h2>
 					<div class="field">
-						<label class="label">Date Range</label>
-						<div class="field">
+						<div class="control">
+							<textarea
+								id="textData"
+								class="textarea is-primary"
+								placeholder="Enter text to auto format"
+								rows="3"
+								style="
+									resize: vertical;
+									min-height: 80px;
+									box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+									border-radius: 8px;
+								"
+							></textarea>
+						</div>
+					</div>
+					<div class="has-text-centered" style="padding-top: 15px">
+						<button
+							class="button is-primary is-rounded"
+							style="font-weight: 600; font-size: 1.1rem"
+							onclick="submitTextData()"
+						>
+							Submit
+						</button>
+					</div>
+				</div>
+
+				<!-- Date Range Controls -->
+				<div class="field has-text-centered" style="padding: 20px">
+					<label class="title is-4 has-text-centered">Date Range</label>
+					<div class="field">
+						<label class="checkbox">
+							<input
+								type="checkbox"
+								id="toggleDateRange"
+								onclick="toggleDateRangeVisibility()"
+							/>
+							Show Date Range
+						</label>
+					</div>
+
+					<div id="dateRangeText" style="display: none">
+						<div class="box has-text-centered has-background-grey-lighter">
+							<input type="datetime-local" id="startDateText" class="input" />
+							<span style="margin: 0 10px">to</span>
+							<input type="datetime-local" id="endDateText" class="input" />
 							<label class="checkbox">
 								<input
 									type="checkbox"
-									id="toggleDateRange"
-									onclick="toggleDateRangeVisibility()"
+									id="deleteAfterRange"
+									onclick="toggleDeleteAfterRange()"
 								/>
-								Show Date Range
+								Delete after range?
+							</label>
+							<label class="checkbox">
+								<input
+									type="checkbox"
+									id="repeatEveryYear"
+									onclick="toggleRepeatEveryYear()"
+								/>
+								Repeat every year?
 							</label>
 						</div>
-						<div class="control" id="dateRangeText" style="display: none">
-							<input type="date" id="startDateText" class="input" />
-							<span style="margin: 0 10px">to</span>
-							<input type="date" id="endDateText" class="input" />
-						</div>
 					</div>
-					<button class="button is-primary" onclick="submitTextData()">
-						Submit
-					</button>
 				</div>
 			</div>
 
-			<!-- Timer Input and Enabled checkbox -->
-			<div class="box" style="padding: 20px">
+			<!-- Timer Input and Enable Checkbox -->
+			<div
+				class="box has-text-centered"
+				style="
+					padding: 30px;
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+				"
+			>
 				<!-- Timer Input -->
-				<div class="field has-addons" style="margin-bottom: 10px">
+				<div
+					class="field has-addons is-justify-content-center"
+					style="margin-bottom: 16px"
+				>
 					<div class="control">
-						<input type="number" id="timerInput" min="1" class="input" />
+						<input
+							type="number"
+							id="timerInput"
+							min="1"
+							class="input"
+							style="width: 120px"
+							placeholder="Minutes"
+						/>
 					</div>
 					<div class="control">
-						<a id="timerInput-btn" class="button is-primary"
-							>Update time in minutes</a
-						>
+						<a id="timerInput-btn" class="button is-primary">
+							Update time in minutes
+						</a>
 					</div>
 				</div>
 
 				<!-- Enabled checkbox next to the Update button -->
-				<div class="field has-addons is-align-items-center">
+				<div
+					class="field is-grouped is-justify-content-center"
+					style="margin-top: 8px"
+				>
 					<div class="control">
-						<label class="checkbox">
-							<input type="checkbox" id="isEnabled" />
+						<label class="checkbox" style="font-size: 1.1rem">
+							<input type="checkbox" id="isEnabled" style="margin-right: 8px" />
 							Enabled
 						</label>
 					</div>
 				</div>
 			</div>
 
-			<!-- Flyout Legend Modal -->
+			<!-- Legend Modal -->
 			<div class="modal" id="legend-modal" style="padding: 20px">
 				<div class="modal-background"></div>
 				<div class="modal-content">
@@ -146,6 +219,7 @@
 					aria-label="close"
 				></button>
 			</div>
+
 			<!-- Event Modal -->
 			<div class="modal" id="event-modal">
 				<div class="modal-background"></div>
@@ -184,8 +258,19 @@
 			</div>
 		</section>
 
-		<!-- Messages container -->
-		<section class="container is-fluid" id="messages"></section>
+		<!-- Messages Section -->
+		<section class="container">
+			<h2
+				class="title is-2 has-text-centered has-text-info-light"
+				style="margin-bottom: 30px"
+			>
+				---Messages---
+			</h2>
+			<div class="has-text-centered" style="padding: 40px">
+				<div class="has-text-centered" id="messages"></div>
+			</div>
+		</section>
+
 		<script src="./js/index.js" async defer></script>
 	</body>
 </html>

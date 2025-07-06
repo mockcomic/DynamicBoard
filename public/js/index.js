@@ -8,6 +8,9 @@ const gridData = [];
 
 let isConnected = false;
 
+let deleteAfterRange = false;
+let repeatEveryYear = false;
+
 let data = {};
 let codex = {};
 
@@ -64,8 +67,10 @@ const sendEntry = async data => {
 const createCard = (element, index) => {
 	const card = document.createElement('div');
 	card.classList.add('card');
+
 	const cardContent = document.createElement('div');
 	cardContent.classList.add('card-content');
+
 	cardContent.classList.add('container');
 	cardContent.classList.add('is-fluid');
 	cardContent.style = 'margin: 10px';
@@ -83,11 +88,15 @@ const createCard = (element, index) => {
 
 	const del = document.createElement('a');
 	del.classList.add('card-footer-item');
+	del.classList.add('has-background-danger');
+	del.classList.add('has-text-white');
 	del.innerText = 'Delete';
 	del.onclick = () => deleteEntry(index);
 
 	const send = document.createElement('a');
 	send.classList.add('card-footer-item');
+	send.classList.add('has-background-primary');
+	send.classList.add('has-text-white');
 	send.innerText = 'Send to Board';
 	send.onclick = () => sendEntry(element);
 
@@ -322,6 +331,15 @@ const toggleDateRangeVisibility = () => {
 	const dateRangeInputs = document.getElementById('dateRangeText');
 	dateRangeInputs.style.display = isChecked ? 'inline-block' : 'none';
 };
+
+const toggleRepeatEveryYear = () => {
+	const isChecked = document.getElementById('repeatEveryYear').checked;
+};
+
+const toggleDeleteAfterRange = () => {
+	const isChecked = document.getElementById('deleteAfterRange').checked;
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 	toggleDateRangeVisibility(); // Initialize visibility
 });
