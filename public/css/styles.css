@@ -1,15 +1,17 @@
+html {
+	background: url('../assets/boxed-bg-dark.png') repeat;
+}
+
 .grid {
 	display: grid;
 	grid-template-columns: repeat(22, 18px);
 	margin-top: 10px;
-
 	width: 435px;
 	height: 200px;
 	margin-left: auto;
 	margin-right: auto;
-	background: rgba(0, 0, 0, 0.5);
-
-	border: 20px solid rgba(0, 0, 0, 0.75);
+	background: grey;
+	border: 20px solid black;
 }
 
 .grid-item {
@@ -24,14 +26,9 @@
 	text-align: center;
 }
 
-#messages {
-	margin: 50px;
-}
-
 .card {
-	background-color: #282c34;
 }
 
-.whiteText {
-	color: white;
-}
+/* #messages {
+	justify-content: space-around;
+} */

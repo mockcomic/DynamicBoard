@@ -12,35 +12,49 @@
 		<link rel="stylesheet" href="./css/styles.css" />
 		<link rel="manifest" href="manifest.json" />
 	</head>
-
 	<body>
-		<section class="section has-text-centered">
-			<p class="title is-2">Dynamicboard</p>
+		<section class="container is-fluid has-text-centered">
+			<div class="box" style="padding: 20px; margin-top: 20px">
+				<h1 class="title">Dynamicboard</h1>
+				<p class="subtitle">
+					A dynamic board for creating and managing events.
+				</p>
+			</div>
+		</section>
+
+		<section>
+			<div id="grid" class="grid"></div>
 		</section>
 
 		<!-- Grid layout -->
-		<section class="section">
-			<div id="grid" class="grid"></div>
-			<div class="buttons is-centered" style="margin-top: 20px">
-				<button class="button is-primary" onclick="submitGridData()">
-					Submit
-				</button>
-				<button class="button is-warning" onclick="clearGrid()">Clear</button>
+		<section class="container is-fluid">
+			<div class="box" style="padding: 20px; margin-top: 20px">
+				<h2 class="title is-4 has-text-centered">Grid Layout</h2>
+				<p class="subtitle is-6 has-text-centered">
+					Click on a cell to edit it. Use the buttons below to submit or clear
+					the grid.
+				</p>
+
+				<!-- Legend Trigger Button -->
+				<div class="buttons is-centered">
+					<button class="button is-info" id="legend-toggle-btn">
+						Show Legend
+					</button>
+				</div>
+
+				<h2 class="title is-4 has-text-centered">Grid Controls</h2>
+				<div class="buttons is-centered" style="margin-top: 20px">
+					<button class="button is-primary" onclick="submitGridData()">
+						Submit
+					</button>
+					<button class="button is-warning" onclick="clearGrid()">Clear</button>
+				</div>
 			</div>
 		</section>
 
 		<section class="container is-fluid">
 			<!-- Text Input -->
 			<div class="box" style="padding: 20px; margin-top: 20px">
-				<!-- Legend Trigger Button -->
-				<div class="buttons is-centered">
-					<button class="button is-info" id="legend-toggle-btn">
-						Show Legend
-					</button>
-					<button class="button is-info" id="event-toggle-btn">
-						Event Panel
-					</button>
-				</div>
 				<input
 					id="textData"
 					class="input is-primary"
@@ -51,13 +65,17 @@
 						<label class="label">Date Range</label>
 						<div class="field">
 							<label class="checkbox">
-								<input type="checkbox" id="toggleDateRange" onclick="toggleDateRangeVisibility()" />
+								<input
+									type="checkbox"
+									id="toggleDateRange"
+									onclick="toggleDateRangeVisibility()"
+								/>
 								Show Date Range
 							</label>
 						</div>
-						<div class="control" id="dateRangeText">
+						<div class="control" id="dateRangeText" style="display: none">
 							<input type="date" id="startDateText" class="input" />
-							<span style="margin: 0 10px;">to</span>
+							<span style="margin: 0 10px">to</span>
 							<input type="date" id="endDateText" class="input" />
 						</div>
 					</div>
@@ -84,23 +102,16 @@
 				<!-- Enabled checkbox next to the Update button -->
 				<div class="field has-addons is-align-items-center">
 					<div class="control">
-						<label
-							class="checkbox has-text-weight-semibold"
-							style="font-size: 18px"
-						>
-							<input
-								type="checkbox"
-								id="isEnabled"
-								style="transform: scale(1.5); margin-right: 10px"
-							/>
-							<span>Enabled</span>
+						<label class="checkbox">
+							<input type="checkbox" id="isEnabled" />
+							Enabled
 						</label>
 					</div>
 				</div>
 			</div>
 
 			<!-- Flyout Legend Modal -->
-			<div class="modal" id="legend-modal">
+			<div class="modal" id="legend-modal" style="padding: 20px">
 				<div class="modal-background"></div>
 				<div class="modal-content">
 					<div class="box" style="padding: 20px">
@@ -124,7 +135,7 @@
 								<strong
 									>You can use the following colored square emojis.</strong
 								>
-								<p>🟫🟩🟥🟦🟧🟪🟨⬜️</p>
+								<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
 							</div>
 						</div>
 					</div>
@@ -144,7 +155,7 @@
 						<div class="content">
 							<div>
 								<strong>All functions must be wrapped with {}</strong>
-								<input></input>
+								<input />
 							</div>
 							<ul>
 								<li class="has-border">
@@ -160,7 +171,7 @@
 								<strong
 									>You can use the following colored square emojis.</strong
 								>
-								<p>🟫🟩🟥🟦🟧🟪🟨⬜️</p>
+								<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
 							</div>
 						</div>
 					</div>
@@ -174,7 +185,7 @@
 		</section>
 
 		<!-- Messages container -->
-		<section id="messages"></section>
+		<section class="container is-fluid" id="messages"></section>
 		<script src="./js/index.js" async defer></script>
 	</body>
 </html>
