@@ -12,262 +12,244 @@
 		<link rel="stylesheet" href="./css/styles.css" />
 		<link rel="manifest" href="manifest.json" />
 	</head>
+
 	<body>
-		<section class="container" style="padding: 20px">
-			<div
-				class="box has-text-centered"
-				style="padding: 20px; margin-top: 20px"
-			>
-				<h1 class="title">Dynamicboard</h1>
-				<p class="subtitle">
-					A dynamic board for creating and managing events.
-				</p>
-			</div>
-		</section>
-
-		<!-- Grid Layout Info and Legend Button -->
-		<section class="container" style="padding: 20px">
-			<div class="box" style="padding: 20px; margin-top: 20px">
-				<h2 class="title is-4 has-text-centered">Grid Layout</h2>
-				<p class="subtitle is-6 has-text-centered">
-					Click on a cell to edit it. Use the buttons below to submit or clear
-					the grid.
-				</p>
-				<!-- Legend Trigger Button -->
-				<div class="buttons is-centered">
-					<button class="button is-info is-rounded" id="legend-toggle-btn">
-						Show Legend
-					</button>
-				</div>
-			</div>
-		</section>
-
-		<!-- Grid Display Section -->
-		<section class="container">
-			<div id="grid" class="grid"></div>
-		</section>
-
-		<!-- Grid Controls, Auto Text Formatting, Date Range, Timer Input -->
-		<section class="container" style="padding: 20px">
-			<div class="box" style="padding: 20px; margin-top: 20px">
-				<!-- Grid Controls -->
-				<div class="box has-background-grey-lighter">
-					<h2 class="title is-4 has-text-centered">Grid Controls</h2>
-					<div class="buttons is-centered" style="margin-top: 20px">
-						<button
-							class="button is-primary is-rounded"
-							onclick="submitGridData()"
-						>
-							Submit
-						</button>
-						<button class="button is-warning is-rounded" onclick="clearGrid()">
-							Clear
+		<!-- Header Section -->
+		<section class="section">
+			<div class="container">
+				<div class="box has-text-centered mt-5 p-5">
+					<h1 class="title">Dynamicboard</h1>
+					<h2 class="subtitle">
+						A dynamic board for creating and managing events.
+					</h2>
+					<h3 class="subtitle is-6">
+						Click on a cell to edit it. Use the buttons below to submit or clear
+						the grid.
+					</h3>
+					<div class="buttons is-centered mt-4">
+						<button class="button is-info is-rounded" id="legend-toggle-btn">
+							Show Legend
 						</button>
 					</div>
 				</div>
+			</div>
+		</section>
 
-				<!-- Auto Text Formatting -->
-				<div class="box has-background-grey-lighter">
-					<h2 class="title is-4 has-text-centered">Auto Text Formatting</h2>
-					<div class="field">
-						<div class="control">
-							<textarea
-								id="textData"
-								class="textarea is-primary"
-								placeholder="Enter text to auto format"
-								rows="3"
-								style="
-									resize: vertical;
-									min-height: 80px;
-									box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-									border-radius: 8px;
-								"
-							></textarea>
+		<!-- Grid Section -->
+		<section>
+			<div class="container">
+				<div id="grid" class="grid"></div>
+			</div>
+		</section>
+
+		<!-- Control Panel Section -->
+		<section class="section">
+			<div class="container">
+				<div class="box p-5">
+					<!-- Grid Controls -->
+					<div class="box has-background-grey-lighter">
+						<h2 class="title is-4 has-text-centered">Grid Controls</h2>
+						<div class="buttons is-centered mt-4">
+							<button
+								class="button is-primary is-rounded"
+								onclick="submitGridData()"
+							>
+								Submit
+							</button>
+							<button
+								class="button is-warning is-rounded"
+								onclick="clearGrid()"
+							>
+								Clear
+							</button>
 						</div>
 					</div>
-					<div class="has-text-centered" style="padding-top: 15px">
-						<button
-							class="button is-primary is-rounded"
-							style="font-weight: 600; font-size: 1.1rem"
-							onclick="submitTextData()"
-						>
-							Submit
-						</button>
-					</div>
-				</div>
 
-				<!-- Date Range Controls -->
-				<div class="field has-text-centered" style="padding: 20px">
-					<label class="title is-4 has-text-centered">Date Range</label>
-					<div class="field">
-						<label class="checkbox">
-							<input
-								type="checkbox"
-								id="toggleDateRange"
-								onclick="toggleDateRangeVisibility()"
-							/>
-							Show Date Range
-						</label>
+					<!-- Auto Text Formatting -->
+					<div class="box has-background-grey-lighter">
+						<h2 class="title is-4 has-text-centered">Auto Text Formatting</h2>
+						<div class="field">
+							<div class="control">
+								<textarea
+									id="textData"
+									class="textarea is-primary"
+									placeholder="Enter text to auto format"
+									rows="3"
+								></textarea>
+							</div>
+						</div>
+						<div class="has-text-centered mt-4">
+							<button
+								class="button is-primary is-rounded has-text-weight-semibold"
+								onclick="submitTextData()"
+							>
+								Submit
+							</button>
+						</div>
 					</div>
 
-					<div id="dateRangeText" style="display: none">
-						<div class="box has-text-centered has-background-grey-lighter">
-							<input type="datetime-local" id="startDateText" class="input" />
-							<span style="margin: 0 10px">to</span>
-							<input type="datetime-local" id="endDateText" class="input" />
+					<!-- Date Range Controls -->
+					<div class="field has-text-centered mt-5">
+						<label class="title is-4">Date Range</label>
+						<div class="field mt-2">
 							<label class="checkbox">
 								<input
 									type="checkbox"
-									id="deleteAfterRange"
-									onclick="toggleDeleteAfterRange()"
+									id="toggleDateRange"
+									onclick="toggleDateRangeVisibility()"
 								/>
-								Delete after range?
+								Show Date Range
 							</label>
-							<label class="checkbox">
+						</div>
+
+						<div id="dateRangeText" class="mt-3" style="display: none">
+							<div class="box has-background-grey-lighter has-text-centered">
 								<input
-									type="checkbox"
-									id="repeatEveryYear"
-									onclick="toggleRepeatEveryYear()"
+									type="datetime-local"
+									id="startDateText"
+									class="input mb-2"
 								/>
-								Repeat every year?
-							</label>
+								<span class="mx-2">to</span>
+								<input
+									type="datetime-local"
+									id="endDateText"
+									class="input mb-4"
+								/>
+								<div class="mt-2">
+									<label class="checkbox mr-4">
+										<input
+											type="checkbox"
+											id="deleteAfterRange"
+											onclick="toggleDeleteAfterRange()"
+										/>
+										Delete after range?
+									</label>
+									<label class="checkbox">
+										<input
+											type="checkbox"
+											id="repeatEveryYear"
+											onclick="toggleRepeatEveryYear()"
+										/>
+										Repeat every year?
+									</label>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
 
-			<!-- Timer Input and Enable Checkbox -->
-			<div
-				class="box has-text-centered"
-				style="
-					padding: 30px;
-					display: flex;
-					flex-direction: column;
-					align-items: center;
-					justify-content: center;
-				"
-			>
 				<!-- Timer Input -->
-				<div
-					class="field has-addons is-justify-content-center"
-					style="margin-bottom: 16px"
-				>
-					<div class="control">
-						<input
-							type="number"
-							id="timerInput"
-							min="1"
-							class="input"
-							style="width: 120px"
-							placeholder="Minutes"
-						/>
+				<div class="box has-text-centered">
+					<div class="field has-addons is-justify-content-center mb-3">
+						<div class="control">
+							<input
+								type="number"
+								id="timerInput"
+								min="1"
+								class="input"
+								placeholder="Minutes"
+								style="width: 120px"
+							/>
+						</div>
+						<div class="control">
+							<a id="timerInput-btn" class="button is-primary">
+								Update time in minutes
+							</a>
+						</div>
 					</div>
-					<div class="control">
-						<a id="timerInput-btn" class="button is-primary">
-							Update time in minutes
-						</a>
-					</div>
-				</div>
-
-				<!-- Enabled checkbox next to the Update button -->
-				<div
-					class="field is-grouped is-justify-content-center"
-					style="margin-top: 8px"
-				>
-					<div class="control">
-						<label class="checkbox" style="font-size: 1.1rem">
-							<input type="checkbox" id="isEnabled" style="margin-right: 8px" />
-							Enabled
-						</label>
-					</div>
-				</div>
-			</div>
-
-			<!-- Legend Modal -->
-			<div class="modal" id="legend-modal" style="padding: 20px">
-				<div class="modal-background"></div>
-				<div class="modal-content">
-					<div class="box" style="padding: 20px">
-						<p class="title is-4">Legend:</p>
-						<div class="content">
-							<div class="has-text-weight-semibold">
-								<strong>All functions must be wrapped with {}</strong>
-								<p>Example: {tillDate(12,25,2025)} days till Christmas</p>
-							</div>
-							<ul>
-								<li class="has-border">
-									<strong>tillDate(dd,mm,yyyy)</strong><br />Returns how many
-									days till the date specified. Will count up after passing the
-									date.
-								</li>
-								<li class="has-border">
-									<strong>date()</strong><br />Returns the current date.
-								</li>
-							</ul>
-							<div class="has-text-weight-semibold">
-								<strong
-									>You can use the following colored square emojis.</strong
-								>
-								<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
-							</div>
+					<div class="field is-grouped is-justify-content-center">
+						<div class="control">
+							<label class="checkbox is-size-5">
+								<input type="checkbox" id="isEnabled" class="mr-2" />
+								Enabled
+							</label>
 						</div>
 					</div>
 				</div>
-				<button
-					class="modal-close is-large"
-					id="close-legend-btn"
-					aria-label="close"
-				></button>
-			</div>
-
-			<!-- Event Modal -->
-			<div class="modal" id="event-modal">
-				<div class="modal-background"></div>
-				<div class="modal-content">
-					<div class="box" style="padding: 20px">
-						<p class="title is-4">Legend:</p>
-						<div class="content">
-							<div>
-								<strong>All functions must be wrapped with {}</strong>
-								<input />
-							</div>
-							<ul>
-								<li class="has-border">
-									<strong>tillDate(dd,mm,yyyy)</strong><br />Returns how many
-									days till the date specified. Will count up after passing the
-									date.
-								</li>
-								<li class="has-border">
-									<strong>date()</strong><br />Returns the current date.
-								</li>
-							</ul>
-							<div class="has-text-weight-semibold">
-								<strong
-									>You can use the following colored square emojis.</strong
-								>
-								<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
-							</div>
-						</div>
-					</div>
-				</div>
-				<button
-					class="modal-close is-large"
-					id="close-event-btn"
-					aria-label="close"
-				></button>
 			</div>
 		</section>
+
+		<!-- Legend Modal -->
+		<div class="modal" id="legend-modal">
+			<div class="modal-background"></div>
+			<div class="modal-content">
+				<div class="box p-5">
+					<p class="title is-4">Legend:</p>
+					<div class="content">
+						<div class="has-text-weight-semibold">
+							<strong>All functions must be wrapped with {}</strong>
+							<p>Example: {tillDate(12,25,2025)} days till Christmas</p>
+						</div>
+						<ul>
+							<li>
+								<strong>tillDate(dd,mm,yyyy)</strong><br />
+								Returns how many days till the date specified. Will count up
+								after passing the date.
+							</li>
+							<li>
+								<strong>date()</strong><br />
+								Returns the current date.
+							</li>
+						</ul>
+						<div class="has-text-weight-semibold mt-4">
+							<strong>You can use the following colored square emojis:</strong>
+							<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<button
+				class="modal-close is-large"
+				id="close-legend-btn"
+				aria-label="close"
+			></button>
+		</div>
+
+		<!-- Event Modal -->
+		<div class="modal" id="event-modal">
+			<div class="modal-background"></div>
+			<div class="modal-content">
+				<div class="box p-5">
+					<p class="title is-4">Legend:</p>
+					<div class="content">
+						<div>
+							<strong>All functions must be wrapped with {}</strong>
+							<input class="input mt-2" />
+						</div>
+						<ul class="mt-4">
+							<li>
+								<strong>tillDate(dd,mm,yyyy)</strong><br />
+								Returns how many days till the date specified. Will count up
+								after passing the date.
+							</li>
+							<li>
+								<strong>date()</strong><br />
+								Returns the current date.
+							</li>
+						</ul>
+						<div class="has-text-weight-semibold mt-4">
+							<strong>You can use the following colored square emojis:</strong>
+							<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<button
+				class="modal-close is-large"
+				id="close-event-btn"
+				aria-label="close"
+			></button>
+		</div>
 
 		<!-- Messages Section -->
-		<section class="container">
-			<h2
-				class="title is-2 has-text-centered has-text-info-light"
-				style="margin-bottom: 30px"
-			>
-				---Messages---
-			</h2>
-			<div class="has-text-centered" style="padding: 40px">
-				<div class="has-text-centered" id="messages"></div>
+		<section class="section">
+			<div class="container">
+				<h2 class="title is-2 has-text-centered has-text-info-light mb-5">
+					---Messages---
+				</h2>
+				<div class="has-text-centered">
+					<div id="messages"></div>
+				</div>
 			</div>
 		</section>
 
