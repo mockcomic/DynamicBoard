@@ -9,16 +9,16 @@ let lastMsg = null;
 
 const { functionCalls } = require('./functionCalls');
 
-const configCheck = () => {
+function configCheck() {
 	const filePath = './config.json';
-	const defaultConfig = {
-		isEnabled: true,
-		timer: 120000,
-		apiWriteKey: null,
-		messages: [],
-	};
 
 	if (!fs.existsSync(filePath)) {
+		const defaultConfig = {
+			isEnabled: true,
+			timer: 120000,
+			apiWriteKey: null,
+			messages: [],
+		};
 		console.log('config.json does not exist, creating it...');
 		fs.writeFileSync(filePath, JSON.stringify(defaultConfig, null, 2));
 		console.log(`Successfully created ${filePath}`);
@@ -30,11 +30,11 @@ const configCheck = () => {
 	apiWriteKey = config.apiWriteKey || null;
 
 	if (!apiWriteKey) {
-		console.error('No API key found in config.json. Please add it.');
+		console.warn('No API key found in config.json. Please add it.');
 	}
-};
+}
 
-const checkVariable = string => {
+function checkVariable(string) {
 	const match = string.match(/\{(.+?)\}/);
 	if (!match) return string;
 
@@ -48,19 +48,27 @@ const checkVariable = string => {
 	}
 
 	return string;
+}
+
+module.exports = {
+	checkVariable,
+	writeGridVestaBoard,
+	writeTextVestaBoard,
 };
 
-const getCurrentMessage = async () => {
+async function getCurrentMessage() {
 	await fetch('https://rw.vestaboard.com/', {
 		headers: {
 			'Content-Type': 'application/json',
 			'X-Vestaboard-Read-Write-Key': apiWriteKey,
 		},
 		method: 'GET',
-	}).then(res => res.json());
-};
+	}).then(function (res) {
+		return res.json();
+	});
+}
 
-const writeGridVestaBoard = data => {
+function writeGridVestaBoard(data) {
 	fetch('https://rw.vestaboard.com/', {
 		body: data,
 		headers: {
@@ -68,12 +76,12 @@ const writeGridVestaBoard = data => {
 			'X-Vestaboard-Read-Write-Key': apiWriteKey,
 		},
 		method: 'POST',
-	}).then(res => {
-		console.log(`${res.status} ${res.statusText}`);
+	}).then(function (res) {
+		console.log(res.status + ' ' + res.statusText);
 	});
-};
+}
 
-const writeTextVestaBoard = data => {
+function writeTextVestaBoard(data) {
 	fetch('https://rw.vestaboard.com/', {
 		body: JSON.stringify({
 			text: data,
@@ -83,12 +91,12 @@ const writeTextVestaBoard = data => {
 			'X-Vestaboard-Read-Write-Key': apiWriteKey,
 		},
 		method: 'POST',
-	}).then(res => {
-		console.log(`${res.status} ${res.statusText}`);
+	}).then(function (res) {
+		console.log(res.status + ' ' + res.statusText);
 	});
-};
+}
 
-const processMessages = async () => {
+async function processMessages() {
 	let index;
 
 	if (!data.isEnabled) {
@@ -115,14 +123,14 @@ const processMessages = async () => {
 	}
 
 	lastMsg = index;
-};
+}
 
-const loopMessages = () => {
+function loopMessages() {
 	if (isLooping) return;
 
 	isLooping = true;
 
-	const loop = async () => {
+	const loop = async function () {
 		await processMessages();
 
 		if (data && data.isEnabled) {
@@ -135,13 +143,13 @@ const loopMessages = () => {
 	};
 
 	loop();
-};
+}
 
-const update = () => {
+function update() {
 	configCheck();
 
-	setInterval(() => {
-		fs.readFile('config.json', (err, file) => {
+	setInterval(function () {
+		fs.readFile('config.json', function (err, file) {
 			if (err) throw err;
 
 			const newData = JSON.parse(file);
@@ -153,7 +161,7 @@ const update = () => {
 
 			if (data.isEnabled) {
 				if (!wasEnabled || timerChanged) {
-					console.log(`Updating loop with new timer: ${data.timer}ms`);
+					console.log('Updating loop with new timer: ' + data.timer + 'ms');
 					clearTimeout(intervalId);
 					isLooping = false;
 					loopMessages();
@@ -161,12 +169,12 @@ const update = () => {
 			}
 		});
 	}, 5000);
-};
+}
 
 update();
 
-module.exports = {
-	checkVariable,
-	writeGridVestaBoard,
-	writeTextVestaBoard,
-};
+// module.exports = {
+// 	checkVariable: checkVariable,
+// 	writeGridVestaBoard: writeGridVestaBoard,
+// 	writeTextVestaBoard: writeTextVestaBoard,
+// };

@@ -8,18 +8,20 @@ const gridData = [];
 
 let isConnected = false;
 
-let deleteAfterRange = false;
-let repeatEveryYear = false;
+const eventInputData = {
+	deleteAfterRange: null,
+	repeatEveryYear: null,
+};
 
 let data = {};
 let codex = {};
 
-(async () => {
+(async function () {
 	const response = await fetch('../CharCode.json');
 	codex = await response.json();
 })();
 
-const pushData = async data => {
+function pushData(data) {
 	try {
 		fetch(`${ipAddress}api/`, {
 			headers: {
@@ -31,9 +33,9 @@ const pushData = async data => {
 	} catch (err) {
 		console.log(err);
 	}
-};
+}
 
-const deleteEntry = index => {
+function deleteEntry(index) {
 	try {
 		const left = data.messages.slice(0, index);
 		const right = data.messages.slice(index + 1, data.messages.length);
@@ -43,9 +45,9 @@ const deleteEntry = index => {
 	} catch (error) {
 		console.log(error);
 	}
-};
+}
 
-const sendEntry = async data => {
+async function sendEntry(data) {
 	try {
 		const response = await fetch(`${ipAddress}api/send`, {
 			method: 'POST',
@@ -62,9 +64,9 @@ const sendEntry = async data => {
 	} catch (err) {
 		console.log(err);
 	}
-};
+}
 
-const createCard = (element, index) => {
+function createCard(element, index) {
 	const card = document.createElement('div');
 	card.classList.add('card');
 
@@ -91,14 +93,18 @@ const createCard = (element, index) => {
 	del.classList.add('has-background-danger');
 	del.classList.add('has-text-white');
 	del.innerText = 'Delete';
-	del.onclick = () => deleteEntry(index);
+	del.onclick = function () {
+		deleteEntry(index);
+	};
 
 	const send = document.createElement('a');
 	send.classList.add('card-footer-item');
 	send.classList.add('has-background-primary');
 	send.classList.add('has-text-white');
 	send.innerText = 'Send to Board';
-	send.onclick = () => sendEntry(element);
+	send.onclick = function () {
+		sendEntry(element);
+	};
 
 	footer.appendChild(send);
 
@@ -108,16 +114,16 @@ const createCard = (element, index) => {
 	card.appendChild(footer);
 
 	dataList.appendChild(card);
-};
+}
 
-const loadData = array => {
+function loadData(array) {
 	dataList.replaceChildren();
 
 	//*Checkbox --------------------------------------------------------------------------------------
 	const checkboxInput = document.getElementById('isEnabled');
 
 	if (array.isEnabled) checkboxInput.checked = true;
-	checkboxInput.onclick = () => {
+	checkboxInput.onclick = function () {
 		if (data.isEnabled) {
 			data.isEnabled = false;
 		} else if (!data.isEnabled) {
@@ -135,24 +141,30 @@ const loadData = array => {
 
 	timerInput.value = data.timer / 60000;
 
-	timerBtn.onclick = () => {
+	timerBtn.onclick = function () {
 		data.timer = timerInput.value * 60000;
 		pushData(data);
 	};
 
-	array.messages.forEach((element, index) => {
+	array.messages.forEach(function (element, index) {
 		createCard(element, index);
 	});
-};
+}
 
-const getData = async () => {
+async function getData() {
 	const res = await fetch(`${ipAddress}api/`);
-	const resData = await res.json();
-	data = await resData;
-	await loadData(data);
-};
+	const response = await res.json();
+	data = await response;
 
-const convertData = () => {
+	if (!data.apiWriteKey) {
+		data.apiWriteKey = window.prompt('No Api key, please enter');
+		pushData(data);
+	}
+
+	await loadData(data);
+}
+
+function convertData() {
 	const newArray = [];
 
 	for (let i = 0; i < gridData.length; i++) {
@@ -166,9 +178,9 @@ const convertData = () => {
 		}
 	}
 	return newArray;
-};
+}
 
-const submitGridData = async () => {
+async function submitGridData() {
 	const vestaMsg = await displayMessage();
 	const vestaData = await convertData();
 	const parsedData = JSON.stringify(vestaData);
@@ -183,9 +195,9 @@ const submitGridData = async () => {
 	pushData(data);
 	loadData(data);
 	clearGrid();
-};
+}
 
-const submitTextData = async () => {
+async function submitTextData() {
 	const textInputData = document.getElementById('textData');
 
 	data.messages.push({
@@ -197,9 +209,9 @@ const submitTextData = async () => {
 
 	pushData(data);
 	loadData(data);
-};
+}
 
-const createInput = (i, j) => {
+function createInput(i, j) {
 	const input = document.createElement('input');
 
 	input.classList.add('grid-item');
@@ -209,7 +221,7 @@ const createInput = (i, j) => {
 
 	input.id = `${j},${i}`;
 
-	input.addEventListener('keydown', evt => {
+	input.addEventListener('keydown', function (evt) {
 		switch (evt.key) {
 			case 'Backspace':
 				document.getElementById(`${j},${i}`).value = '';
@@ -257,7 +269,7 @@ const createInput = (i, j) => {
 		}
 	});
 
-	input.addEventListener('input', evt => {
+	input.addEventListener('input', function (evt) {
 		if (evt.data == null) return;
 		if (evt.data !== ' ') gridData[i][j] = evt.data;
 
@@ -275,9 +287,9 @@ const createInput = (i, j) => {
 	});
 
 	return input;
-};
+}
 
-const createGrid = () => {
+function createGrid() {
 	const grid = document.getElementById('grid');
 	for (let i = 0; i < gridY; i++) {
 		gridData[i] = new Array(gridX).fill('');
@@ -285,19 +297,19 @@ const createGrid = () => {
 			grid.appendChild(createInput(i, j));
 		}
 	}
-};
+}
 
-const clearGrid = () => {
+function clearGrid() {
 	for (let i = 0; i < gridY; i++) {
 		for (let j = 0; j < gridX; j++) {
 			gridData[i][j] = '';
 			document.getElementById(`${j},${i}`).value = '';
 		}
 	}
-};
+}
 
 //TODO find a solution to have whitespace in the message
-const displayMessage = () => {
+function displayMessage() {
 	let message = '';
 	let padding = 0;
 	for (let i = 0; i < gridY; i++) {
@@ -314,7 +326,7 @@ const displayMessage = () => {
 		padding = 0;
 	}
 	return message;
-};
+}
 
 // Legend Modal
 
@@ -322,25 +334,28 @@ document.getElementById('legend-toggle-btn').onclick = function () {
 	document.getElementById('legend-modal').classList.add('is-active');
 };
 
-document.getElementById('close-legend-btn').onclick = function () {
+function closeEventModal() {
 	document.getElementById('legend-modal').classList.remove('is-active');
-};
+}
 
-const toggleDateRangeVisibility = () => {
+function toggleDateRangeVisibility() {
 	const isChecked = document.getElementById('toggleDateRange').checked;
 	const dateRangeInputs = document.getElementById('dateRangeText');
+
 	dateRangeInputs.style.display = isChecked ? 'inline-block' : 'none';
-};
+}
 
-const toggleRepeatEveryYear = () => {
-	const isChecked = document.getElementById('repeatEveryYear').checked;
-};
+function toggleRepeatEveryYear() {
+	eventInputData.repeatEveryYear =
+		document.getElementById('repeatEveryYear').checked;
+}
 
-const toggleDeleteAfterRange = () => {
-	const isChecked = document.getElementById('deleteAfterRange').checked;
-};
+function toggleDeleteAfterRange() {
+	eventInputData.deleteAfterRange =
+		document.getElementById('deleteAfterRange').checked;
+}
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function () {
 	toggleDateRangeVisibility(); // Initialize visibility
 });
 

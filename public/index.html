@@ -171,7 +171,7 @@
 
 		<!-- Legend Modal -->
 		<div class="modal" id="legend-modal">
-			<div class="modal-background"></div>
+			<div class="modal-background" onclick="closeEventModal()"></div>
 			<div class="modal-content">
 				<div class="box p-5">
 					<p class="title is-4">Legend:</p>
@@ -200,7 +200,7 @@
 			</div>
 			<button
 				class="modal-close is-large"
-				id="close-legend-btn"
+				onclick="closeEventModal()"
 				aria-label="close"
 			></button>
 		</div>
