@@ -5,7 +5,7 @@ const FILES_TO_CACHE = [
 	'/index.html',
 	'/manifest.json',
 	'/css/styles.css',
-	'/icons/apple-icon-180.png',
+	'/icons/180.png',
 	'/CharCode.json',
 	'/js/index.js',
 	'/js/index.js',
