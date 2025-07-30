@@ -52,7 +52,7 @@
 						<div class="buttons is-centered mt-4">
 							<button
 								class="button is-primary is-rounded"
-								onclick="submitGridData()"
+								onclick="submitData('grid')"
 							>
 								Submit
 							</button>
@@ -81,7 +81,7 @@
 						<div class="has-text-centered mt-4">
 							<button
 								class="button is-primary is-rounded has-text-weight-semibold"
-								onclick="submitTextData()"
+								onclick="submitData('text')"
 							>
 								Submit
 							</button>
@@ -252,6 +252,14 @@
 				</div>
 			</div>
 		</section>
+
+		<footer class="has-text-centered">
+			<div class="container">
+				<button class="button is-danger is-rounded" id="delete-config-btn">
+					Delete Config
+				</button>
+			</div>
+		</footer>
 
 		<script src="./js/index.js" async defer></script>
 	</body>

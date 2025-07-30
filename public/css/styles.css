@@ -1,5 +1,7 @@
-html {
+body {
 	background: url('../assets/boxed-bg-dark.png') repeat;
+	margin: 0;
+	padding: 0;
 }
 
 .grid {

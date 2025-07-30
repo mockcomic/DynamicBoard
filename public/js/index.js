@@ -1,9 +1,9 @@
 const dataList = document.getElementById('messages');
 const ipAddress = document.URL;
-const gridX = 22,
-	gridY = 6;
+
+const gridX = 22;
+const gridY = 6;
 const gridData = Array.from({ length: gridY }, () => Array(gridX).fill(''));
-let isConnected = false;
 
 let eventData = {
 	isEvent: false,
@@ -21,6 +21,7 @@ let codex = {};
 	codex = await response.json();
 })();
 
+// #region Data
 async function pushData(data) {
 	try {
 		await fetch(`${ipAddress}api/`, {
@@ -31,67 +32,6 @@ async function pushData(data) {
 	} catch (err) {
 		console.log(err);
 	}
-}
-
-async function deleteEntry(index) {
-	try {
-		configData.messages.splice(index, 1);
-		pushData(configData);
-		loadData(configData);
-	} catch (error) {
-		console.log(error);
-	}
-}
-
-async function sendEntry(data) {
-	try {
-		const response = await fetch(`${ipAddress}api/send`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(data),
-		});
-		console.log(
-			response.ok ? 'Entry sent successfully' : 'Failed to send entry'
-		);
-	} catch (err) {
-		console.log(err);
-	}
-}
-
-function createCard(element, index) {
-	console.log({ element, index });
-	const card = document.createElement('div');
-	card.className = 'card';
-
-	const cardContent = document.createElement('div');
-	cardContent.className = 'card-content container is-fluid';
-	cardContent.style.margin = '10px';
-
-	const title = document.createElement('p');
-	title.className = 'title whiteText';
-	title.innerText = element.msg;
-	cardContent.appendChild(title);
-
-	const footer = document.createElement('footer');
-	footer.className = 'card-footer';
-
-	const del = document.createElement('a');
-	del.className = 'card-footer-item has-background-danger has-text-white';
-	del.innerText = 'Delete';
-	del.onclick = function () {
-		deleteEntry(index);
-	};
-
-	const send = document.createElement('a');
-	send.className = 'card-footer-item has-background-primary has-text-white';
-	send.innerText = 'Send to Board';
-	send.onclick = function () {
-		sendEntry(element);
-	};
-
-	footer.append(send, del);
-	card.append(cardContent, footer);
-	dataList.appendChild(card);
 }
 
 function loadData(array) {
@@ -118,6 +58,7 @@ function loadData(array) {
 async function getData() {
 	const res = await fetch(`${ipAddress}api/`);
 	configData = await res.json();
+	checkConfig(configData);
 	loadData(configData);
 }
 
@@ -129,33 +70,27 @@ function convertData() {
 	});
 }
 
-async function submitGridData() {
-	const vestaMsg = displayMessage();
-	const vestaData = convertData();
-	const parsedData = JSON.stringify(vestaData);
-
-	configData.messages.push({
-		type: 'grid',
-		msg: vestaMsg,
-		data: parsedData,
-		eventData: eventData,
-	});
+function checkConfig(configData) {
+	if (!configData.apiWriteKey) {
+		configData.apiWriteKey =
+			window.prompt(
+				'Write API Key is either missing or invalid. Please enter you API key below.'
+			) || '';
+		if (!configData.apiWriteKey) checkConfig(configData);
+	}
 	pushData(configData);
-	loadData(configData);
-	clearGrid();
 }
 
-async function submitTextData() {
-	const textInputData = document.getElementById('textData');
-	configData.messages.push({
-		type: 'text',
-		msg: textInputData.value,
-		data: textInputData.value,
-		eventData: eventData,
-	});
-	textInputData.value = '';
-	pushData(configData);
-	loadData(configData);
+// #endregion
+
+// #region Grid/Text
+function createGrid() {
+	const grid = document.getElementById('grid');
+	for (let i = 0; i < gridY; i++) {
+		for (let j = 0; j < gridX; j++) {
+			grid.appendChild(createInput(i, j));
+		}
+	}
 }
 
 function createInput(i, j) {
@@ -209,15 +144,6 @@ function createInput(i, j) {
 	return input;
 }
 
-function createGrid() {
-	const grid = document.getElementById('grid');
-	for (let i = 0; i < gridY; i++) {
-		for (let j = 0; j < gridX; j++) {
-			grid.appendChild(createInput(i, j));
-		}
-	}
-}
-
 function clearGrid() {
 	for (let i = 0; i < gridY; i++) {
 		for (let j = 0; j < gridX; j++) {
@@ -240,7 +166,178 @@ function displayMessage() {
 	return message;
 }
 
-// Legend Modal
+async function submitData(type) {
+	let msg, data;
+	if (type === 'grid') {
+		msg = displayMessage();
+		data = JSON.stringify(convertData());
+		clearGrid();
+	} else if (type === 'text') {
+		const textInputData = document.getElementById('textData');
+		msg = textInputData.value;
+		data = textInputData.value;
+		textInputData.value = '';
+	} else {
+		console.error('Invalid type for submitData');
+		return;
+	}
+
+	const { startDate, endDate } = getDateRange();
+
+	//! Check if vaild date range
+	if (eventData.isEvent && (endDate < startDate || !endDate || !startDate)) {
+		console.log('Invalid date range');
+		showCustomAlert(
+			'Invliad date range. Please enter a vaild date or uncheck "Show Date Range".'
+		);
+		return;
+	}
+
+	eventData.startDate = startDate;
+	eventData.endDate = endDate;
+
+	configData.messages.push({
+		id: Date.now() + Math.floor(Math.random() * 1000),
+		type,
+		msg,
+		data,
+		eventData: eventData,
+	});
+	pushData(configData);
+	loadData(configData);
+}
+
+function getDateRange() {
+	startDate = document.getElementById('startDateText').value;
+	endDate = document.getElementById('endDateText').value;
+
+	return { startDate, endDate };
+}
+
+// #endregion
+
+// #region Message Section
+async function deleteEntry(id) {
+	try {
+		const filteredData = (configData.messages = configData.messages.filter(
+			message => {
+				return message.id != id;
+			}
+		));
+		configData.messages = filteredData;
+		pushData(configData);
+		loadData(configData);
+	} catch (error) {
+		console.log(error);
+	}
+}
+
+async function sendEntry(data) {
+	try {
+		const response = await fetch(`${ipAddress}api/send`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(data),
+		});
+		console.log(
+			response.ok ? 'Entry sent successfully' : 'Failed to send entry'
+		);
+	} catch (err) {
+		console.log(err);
+	}
+}
+
+function createCard(messageData) {
+	const card = document.createElement('div');
+	card.className = messageData.eventData.isEvent
+		? 'card has-background-warning'
+		: 'card';
+
+	const cardContent = document.createElement('div');
+	cardContent.className = 'card-content container is-fluid ';
+	cardContent.style.margin = '10px';
+
+	const text = document.createElement('p');
+
+	text.className = 'title';
+	text.innerText = messageData.msg;
+	cardContent.appendChild(text);
+
+	if (messageData.eventData.isEvent) {
+		const dateRangeText = document.createElement('p');
+		const dateRangeSubText = document.createElement('p');
+
+		dateRangeText.className = 'subtitle is-6 has-text-grey-dark';
+		dateRangeText.innerHTML = `<span class="has-text-weight-semibold">Date Range:</span> ${messageData.eventData.startDate} - ${messageData.eventData.endDate}`;
+
+		dateRangeSubText.className = 'is-size-7 has-text-grey';
+		dateRangeSubText.innerHTML = `
+		<span class="tag is-danger is-light">Delete After Range: ${messageData.eventData.deleteAfterRange}</span>
+		<span class="tag is-info is-light" style="margin-left: 5px;">Repeat Every Year: ${messageData.eventData.repeatEveryYear}</span>
+	`;
+
+		cardContent.appendChild(dateRangeText);
+		cardContent.appendChild(dateRangeSubText);
+	}
+
+	const footer = document.createElement('footer');
+	footer.className = 'card-footer';
+
+	const del = document.createElement('a');
+	del.className = 'card-footer-item has-background-danger has-text-white';
+	del.innerText = 'Delete';
+	del.onclick = function () {
+		deleteEntry(messageData.id);
+	};
+
+	const send = document.createElement('a');
+	send.className = 'card-footer-item has-background-primary has-text-white';
+	send.innerText = 'Send to Board';
+	send.onclick = function () {
+		sendEntry(messageData);
+	};
+
+	footer.append(send, del);
+	card.append(cardContent, footer);
+	dataList.appendChild(card);
+}
+// #endregion
+
+// #region DOM
+
+document.getElementById('delete-config-btn').onclick = () => {
+	const res = window.confirm('You are about to delete your config file.');
+	if (res) {
+		pushData({
+			isEnabled: false,
+			timer: 120000,
+			apiWriteKey: null,
+			messages: [],
+		});
+	}
+};
+
+function showCustomAlert(message) {
+	const notification = document.createElement('div');
+	notification.className = 'notification is-danger';
+	notification.style.position = 'fixed';
+	notification.style.top = '20px';
+	notification.style.right = '20px';
+	notification.style.zIndex = '9999';
+	notification.innerHTML = `
+        <button class="delete" onclick="this.parentElement.remove()"></button>
+        ${message}
+    `;
+
+	document.body.appendChild(notification);
+
+	setTimeout(() => {
+		if (notification.parentElement) {
+			notification.remove();
+		}
+	}, 5000);
+}
+
 document.getElementById('legend-toggle-btn').onclick = () =>
 	document.getElementById('legend-modal').classList.add('is-active');
 
@@ -269,5 +366,11 @@ document.addEventListener('DOMContentLoaded', () => {
 	toggleDateRangeVisibility();
 });
 
-createGrid();
-getData();
+// #endregion
+
+function main() {
+	createGrid();
+	getData();
+}
+
+main();

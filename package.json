@@ -27,6 +27,7 @@
 		"cors": "^2.8.5",
 		"ejs": "^3.1.9",
 		"express": "^4.18.1",
+		"moment": "^2.30.1",
 		"node-cmd": "^5.0.0"
 	},
 	"devDependencies": {

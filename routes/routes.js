@@ -3,10 +3,9 @@ const fs = require('fs');
 const router = express.Router();
 
 const {
-	writeGridVestaBoard,
-	writeTextVestaBoard,
+	sendToVestaboard,
 	checkVariable,
-} = require('../controllers/messageControllers');
+} = require('../backend/routes/controller');
 
 router.get('/api', async (req, res) => {
 	fs.readFile('config.json', (err, data) => {
@@ -30,10 +29,10 @@ router.get('/', (req, res) => {
 router.post('/api/send', (req, res) => {
 	console.log(req.body);
 	if (req.body.type === 'grid') {
-		writeGridVestaBoard(JSON.parse(req.body.data));
+		sendToVestaboard(JSON.parse(req.body.data), 'grid');
 	} else if (req.body.type === 'text') {
 		const msg = checkVariable(req.body.data);
-		writeTextVestaBoard(msg);
+		sendToVestaboard(msg, 'text');
 	}
 	res.send(req.body);
 });
