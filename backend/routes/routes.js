@@ -2,11 +2,7 @@ const path = require('path');
 const express = require('express');
 const app = express();
 const router = express.Router();
-const {
-	writeGridVestaBoard,
-	writeTextVestaBoard,
-	checkVariable,
-} = require('../controllers/messageControllers');
+const { sendToVestaboard, checkVariable } = require('../routes/controller');
 
 const {
 	getAllMessages,
@@ -22,14 +18,13 @@ router.get('/', (req, res) =>
 );
 
 router.post('/api/send', (req, res) => {
-	if (req.body.type == 'grid') {
-		writeGridVestaBoard(JSON.parse(req.body.data));
-	}
+	let msg = JSON.parse(req.body.data);
+
 	if (req.body.type == 'text') {
-		console.log('text', req.body);
-		const msg = checkVariable(req.body.data);
-		writeTextVestaBoard(msg);
+		msg = checkVariable(req.body.data);
 	}
+
+	sendToVestaboard(msg, req.body.type);
 
 	res.send(req.body);
 });

@@ -56,6 +56,7 @@ function configCheck() {
 			isEnabled: true,
 			timer: 120000,
 			apiWriteKey: null,
+			isValidKey: null,
 			messages: [],
 		};
 		console.log('config.json does not exist, creating it...');
@@ -100,8 +101,12 @@ async function getCurrentMessage() {
 }
 
 async function sendToVestaboard(data, dataType) {
+	console.log(data);
 	try {
-		const body = dataType === 'grid' ? data : JSON.stringify({ text: data });
+		const body =
+			dataType === 'grid'
+				? JSON.stringify(data)
+				: JSON.stringify({ text: data });
 
 		const res = await fetch('https://rw.vestaboard.com/', {
 			body,
@@ -113,13 +118,13 @@ async function sendToVestaboard(data, dataType) {
 		});
 		console.log(res.status + ' ' + res.statusText);
 		if (res.status === 403) {
-			console.log('Invalid apiWriteKey, setting value to Null');
-			config.apiWriteKey = null;
+			console.log('Invalid apiWriteKey, isValidKey set to false');
+			console.log(config.apiWriteKey);
+			config.isValidKey = false;
 			updateConfig(config);
 		}
 	} catch (error) {
 		console.error('Error in sendToVestaboard:', error);
-		config.apiWriteKey = null;
 		updateConfig(config);
 	}
 }
@@ -133,7 +138,7 @@ function deleteMessage(id) {
 	updateConfig(data);
 }
 
-function proccessEvent(messageData) {
+async function proccessEvent(messageData) {
 	const { eventData } = messageData;
 	if (!eventData.startDate || !eventData.endDate) return;
 
@@ -146,14 +151,18 @@ function proccessEvent(messageData) {
 		? moment(eventData.endDate).month(today.month()).date(today.date())
 		: moment(eventData.endDate);
 
+	console.log({ start, end });
+
 	if (today.isBetween(start, end, null, '[]')) {
 		console.log('Today is within the range!');
 		return true;
 	}
 
 	if (!isYearly && start.isAfter(today) && eventData.deleteAfterRange) {
-		deleteMessage(messageData.id);
+		console.log('Deleting message');
+		await deleteMessage(messageData.id);
 	}
+
 	return false;
 }
 
@@ -179,6 +188,7 @@ async function processMessages() {
 			const validMessage = proccessEvent(messageData);
 
 			if (!validMessage) {
+				configCheck();
 				processMessages();
 				return;
 			}

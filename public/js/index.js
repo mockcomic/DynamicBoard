@@ -1,4 +1,4 @@
-const dataList = document.getElementById('messages');
+const messagesList = document.getElementById('messages');
 const ipAddress = document.URL;
 
 const gridX = 22;
@@ -35,7 +35,7 @@ async function pushData(data) {
 }
 
 function loadData(array) {
-	dataList.replaceChildren();
+	messagesList.replaceChildren();
 
 	const checkboxInput = document.getElementById('isEnabled');
 	checkboxInput.checked = !!array.isEnabled;
@@ -71,12 +71,9 @@ function convertData() {
 }
 
 function checkConfig(configData) {
-	if (!configData.apiWriteKey) {
-		configData.apiWriteKey =
-			window.prompt(
-				'Write API Key is either missing or invalid. Please enter you API key below.'
-			) || '';
-		if (!configData.apiWriteKey) checkConfig(configData);
+	if (!configData.apiWriteKey || configData.isValidKey == false) {
+		console.log('test');
+		document.getElementById('api-key-warning').style.display = 'block';
 	}
 	pushData(configData);
 }
@@ -299,23 +296,20 @@ function createCard(messageData) {
 
 	footer.append(send, del);
 	card.append(cardContent, footer);
-	dataList.appendChild(card);
+	messagesList.appendChild(card);
 }
 // #endregion
 
 // #region DOM
 
-document.getElementById('delete-config-btn').onclick = () => {
-	const res = window.confirm('You are about to delete your config file.');
-	if (res) {
-		pushData({
-			isEnabled: false,
-			timer: 120000,
-			apiWriteKey: null,
-			messages: [],
-		});
+async function promptApiKey() {
+	const apiKey = await window.prompt('Please enter API key');
+	configData.apiWriteKey = apiKey.trim();
+	if (apiKey) {
+		await pushData(configData);
+		window.location.reload();
 	}
-};
+}
 
 function showCustomAlert(message) {
 	const notification = document.createElement('div');
@@ -358,7 +352,7 @@ function toggleDeleteAfterRange() {
 }
 
 function toggleRepeatEveryYear() {
-	eventData.deleteAfterRange =
+	eventData.repeatEveryYear =
 		document.getElementById('repeatEveryYear').checked;
 }
 

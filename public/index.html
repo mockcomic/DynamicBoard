@@ -15,6 +15,21 @@
 
 	<body>
 		<!-- Header Section -->
+		<section
+			class="hero is-danger is-bold"
+			id="api-key-warning"
+			style="display: none"
+		>
+			<div class="container has-text-centered p-5">
+				<h2 class="subtitle">Your API key seems to be invalid or missing</h2>
+				<div class="container">
+					<button class="button is-primary is-rounded" onclick="promptApiKey()">
+						Enter API Key
+					</button>
+				</div>
+			</div>
+		</section>
+
 		<section class="section">
 			<div class="container">
 				<div class="box has-text-centered mt-5 p-5">
@@ -255,8 +270,12 @@
 
 		<footer class="has-text-centered">
 			<div class="container">
-				<button class="button is-danger is-rounded" id="delete-config-btn">
-					Delete Config
+				<button
+					class="button is-danger is-rounded"
+					id="delete-api-key-btn"
+					onclick="promptApiKey()"
+				>
+					Delete API Key
 				</button>
 			</div>
 		</footer>

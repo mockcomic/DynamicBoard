@@ -1,2 +1,16 @@
 node_modules
-images
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+.DS_Store
+Dockerfile
+.dockerignore
