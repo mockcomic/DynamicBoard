@@ -62,8 +62,6 @@ function configCheck() {
 		console.log('config.json does not exist, creating it...');
 		updateConfig(defaultConfig);
 		console.log(`Successfully created ${filePath}`);
-	} else {
-		console.log('config.json already exists.');
 	}
 
 	config = JSON.parse(fs.readFileSync(filePath));
@@ -143,22 +141,20 @@ async function proccessEvent(messageData) {
 	if (!eventData.startDate || !eventData.endDate) return;
 
 	const isYearly = eventData.repeatEveryYear;
-	const today = moment();
+
+	const now = moment();
 	const start = isYearly
-		? moment(eventData.startDate).month(today.month()).date(today.date())
+		? moment(eventData.startDate).year(now.year())
 		: moment(eventData.startDate);
 	const end = isYearly
-		? moment(eventData.endDate).month(today.month()).date(today.date())
+		? moment(eventData.endDate).year(now.year())
 		: moment(eventData.endDate);
 
-	console.log({ start, end });
-
-	if (today.isBetween(start, end, null, '[]')) {
+	console.log(isYearly, start.isAfter(now));
+	if (now.isBetween(start, end)) {
 		console.log('Today is within the range!');
 		return true;
-	}
-
-	if (!isYearly && start.isAfter(today) && eventData.deleteAfterRange) {
+	} else if (!isYearly && !end.isAfter(now)) {
 		console.log('Deleting message');
 		await deleteMessage(messageData.id);
 	}
@@ -167,42 +163,43 @@ async function proccessEvent(messageData) {
 }
 
 async function processMessages() {
-	let index;
-
-	if (!data.isEnabled) {
+	if (!data?.isEnabled) {
 		isLooping = false;
 		return;
 	}
 
-	if (lastMsg === null) {
-		index = 0;
-	} else {
-		index = lastMsg + 1 > data.messages.length - 1 ? 0 : lastMsg + 1;
+	const len = Array.isArray(data?.messages) ? data.messages.length : 0;
+	if (len === 0) {
+		isLooping = false;
+		return;
 	}
 
-	if (data.messages.length > 0) {
-		const messageData = data.messages[index];
-		console.log(data.timer);
+	let idx = lastMsg == null ? 0 : (lastMsg + 1) % len;
 
-		if (messageData.eventData.isEvent == true) {
-			const validMessage = proccessEvent(messageData);
+	for (let attempts = 0; attempts < len; attempts++) {
+		const messageData = data.messages[idx];
 
+		if (messageData?.eventData?.isEvent === true) {
+			const validMessage = await proccessEvent(messageData);
 			if (!validMessage) {
-				configCheck();
-				processMessages();
-				return;
+				await configCheck();
+				idx = (idx + 1) % len;
+				continue;
 			}
 		}
 
-		if (messageData.type === 'grid') {
-			sendToVestaboard(data.messages[index].data, 'grid');
-		} else if (messageData.type === 'text') {
+		if (messageData?.type === 'grid') {
+			await sendToVestaboard(messageData.data, 'grid');
+		} else if (messageData?.type === 'text') {
 			const msg = checkVariable(messageData.data);
-			sendToVestaboard(msg, 'text');
+			await sendToVestaboard(msg, 'text');
 		}
+
+		lastMsg = idx;
+		return;
 	}
 
-	lastMsg = index;
+	isLooping = false;
 }
 
 function loopMessages() {

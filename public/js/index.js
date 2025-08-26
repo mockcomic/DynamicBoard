@@ -5,11 +5,17 @@ const gridX = 22;
 const gridY = 6;
 const gridData = Array.from({ length: gridY }, () => Array(gridX).fill(''));
 
+const eventDataDefualt = {
+	isEvent: false,
+	startDate: '',
+	endDate: '',
+	repeatEveryYear: false,
+};
+
 let eventData = {
 	isEvent: false,
-	startDate: false,
-	endDate: false,
-	deleteAfterRange: false,
+	startDate: '',
+	endDate: '',
 	repeatEveryYear: false,
 };
 
@@ -72,7 +78,6 @@ function convertData() {
 
 function checkConfig(configData) {
 	if (!configData.apiWriteKey || configData.isValidKey == false) {
-		console.log('test');
 		document.getElementById('api-key-warning').style.display = 'block';
 	}
 	pushData(configData);
@@ -200,6 +205,11 @@ async function submitData(type) {
 		data,
 		eventData: eventData,
 	});
+
+	eventData = eventDataDefualt;
+
+	window.location.reload();
+
 	pushData(configData);
 	loadData(configData);
 }
@@ -207,6 +217,9 @@ async function submitData(type) {
 function getDateRange() {
 	startDate = document.getElementById('startDateText').value;
 	endDate = document.getElementById('endDateText').value;
+
+	document.getElementById('startDateText').valueAsNumber = NaN;
+	document.getElementById('endDateText').valueAsNumber = NaN;
 
 	return { startDate, endDate };
 }
@@ -244,6 +257,13 @@ async function sendEntry(data) {
 	}
 }
 
+function formatDate(dateStr) {
+	if (!dateStr) return '';
+	const date = new Date(dateStr);
+	if (isNaN(date)) return dateStr;
+	return date.toLocaleString('en-US', { hour12: true });
+}
+
 function createCard(messageData) {
 	const card = document.createElement('div');
 	card.className = messageData.eventData.isEvent
@@ -265,13 +285,19 @@ function createCard(messageData) {
 		const dateRangeSubText = document.createElement('p');
 
 		dateRangeText.className = 'subtitle is-6 has-text-grey-dark';
-		dateRangeText.innerHTML = `<span class="has-text-weight-semibold">Date Range:</span> ${messageData.eventData.startDate} - ${messageData.eventData.endDate}`;
+		dateRangeText.innerHTML = `
+			<span class="tag is-warning is-light has-text-weight-semibold" style="margin-right: 5px;">Date Range</span>
+			<span class="has-text-weight-semibold">${formatDate(
+				messageData.eventData.startDate
+			)}</span>
+			<span class="has-text-grey-dark">-</span>
+			<span class="has-text-weight-semibold">${formatDate(
+				messageData.eventData.endDate
+			)}</span>
+		`;
 
 		dateRangeSubText.className = 'is-size-7 has-text-grey';
-		dateRangeSubText.innerHTML = `
-		<span class="tag is-danger is-light">Delete After Range: ${messageData.eventData.deleteAfterRange}</span>
-		<span class="tag is-info is-light" style="margin-left: 5px;">Repeat Every Year: ${messageData.eventData.repeatEveryYear}</span>
-	`;
+		dateRangeSubText.innerHTML = `<span class="tag is-info is-light" style="margin-left: 5px;">Repeat Every Year: ${messageData.eventData.repeatEveryYear}</span>`;
 
 		cardContent.appendChild(dateRangeText);
 		cardContent.appendChild(dateRangeSubText);
@@ -305,6 +331,7 @@ function createCard(messageData) {
 async function promptApiKey() {
 	const apiKey = await window.prompt('Please enter API key');
 	configData.apiWriteKey = apiKey.trim();
+	configData.isValidKey = true;
 	if (apiKey) {
 		await pushData(configData);
 		window.location.reload();
@@ -344,11 +371,6 @@ function toggleDateRangeVisibility() {
 	document.getElementById('dateRangeText').style.display = eventData.isEvent
 		? 'inline-block'
 		: 'none';
-}
-
-function toggleDeleteAfterRange() {
-	eventData.deleteAfterRange =
-		document.getElementById('deleteAfterRange').checked;
 }
 
 function toggleRepeatEveryYear() {
