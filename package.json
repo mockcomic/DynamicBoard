@@ -3,14 +3,14 @@
 	"version": "1.0.1",
 	"description": "",
 	"main": "server.js",
-	"bin": "server.js",
 	"scripts": {
 		"start": "node server.js",
+		"start:prod": "node server.js",
 		"dev": "nodemon server.js",
 		"docker:save:unix": "./save-docker-image.sh",
 		"docker:save:win": "save-docker-image.bat",
 		"docker:save": "npm run docker:save:win || npm run docker:save:unix",
-		"build": "pkg . --targets node18-win-x64,node18-macos-x64,node18-linux-x64 --output release/DynamicBoard"
+		"build:pkg": "pkg . --targets node18-win-x64,node18-macos-x64,node18-linux-x64 --output release/DynamicBoard"
 	},
 	"pkg": {
 		"assets": [
@@ -20,8 +20,6 @@
 			"node_modules/ejs/**/*"
 		]
 	},
-	"keywords": [],
-	"author": "",
 	"license": "ISC",
 	"dependencies": {
 		"cors": "^2.8.5",

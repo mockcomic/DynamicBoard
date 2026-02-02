@@ -14,3 +14,24 @@ coverage
 .DS_Store
 Dockerfile
 .dockerignore
+
+# pkg output
+release
+pkg
+*.exe
+*.bin
+images
+
+# node stuff
+node_modules
+npm-debug.log
+
+# git / editor
+.git
+.vscode
+
+# env
+.env
+
+
+config.js

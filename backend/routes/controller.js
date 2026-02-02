@@ -136,7 +136,7 @@ function deleteMessage(id) {
 	updateConfig(data);
 }
 
-async function proccessEvent(messageData) {
+async function processEvent(messageData) {
 	const { eventData } = messageData;
 	if (!eventData.startDate || !eventData.endDate) return;
 
@@ -180,7 +180,7 @@ async function processMessages() {
 		const messageData = data.messages[idx];
 
 		if (messageData?.eventData?.isEvent === true) {
-			const validMessage = await proccessEvent(messageData);
+			const validMessage = await processEvent(messageData);
 			if (!validMessage) {
 				await configCheck();
 				idx = (idx + 1) % len;
@@ -223,8 +223,8 @@ function loopMessages() {
 }
 
 function main() {
-	configCheck();
 	setInterval(function () {
+		configCheck();
 		if (config.apiWriteKey) {
 			fs.readFile('config.json', function (err, file) {
 				if (err) throw err;
