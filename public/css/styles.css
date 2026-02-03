@@ -1,19 +1,7 @@
-html {
-	margin: 0;
-	padding: 0;
-	min-height: 100%;
-	background: url('../assets/boxed-bg-dark.png');
-	background-size: auto;
-	image-rendering: pixelated;
-	background-repeat: repeat;
-	background-position: top left;
-	background-color: #242424; /* fallback */
-}
 body {
+	background: url('../assets/boxed-bg-dark.png') repeat;
 	margin: 0;
 	padding: 0;
-	min-height: 100svh;
-	background: inherit;
 }
 
 .grid {
