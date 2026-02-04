@@ -9,7 +9,7 @@
 			rel="stylesheet"
 			href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
 		/>
-		<link rel="stylesheet" href="./css/styles.css" />
+		<link rel="stylesheet" href="./css/styles.css?v=20260204" />
 		<link rel="manifest" href="manifest.json" />
 	</head>
 
@@ -23,7 +23,7 @@
 			<div class="container has-text-centered p-5">
 				<h2 class="subtitle">Your API key seems to be invalid or missing</h2>
 				<div class="container">
-					<button class="button is-primary is-rounded" onclick="promptApiKey()">
+					<button class="button is-primary is-rounded" onclick="setApiKey()">
 						Enter API Key
 					</button>
 				</div>
@@ -263,15 +263,16 @@
 		<footer class="has-text-centered">
 			<div class="container">
 				<button
-					class="button is-danger is-rounded"
-					id="delete-api-key-btn"
-					onclick="promptApiKey()"
+					class="button is-warning is-rounded"
+					id="reset-api-key-btn"
+					onclick="resetApiKey()"
 				>
-					Delete API Key
+					Reset API Key
 				</button>
+				<p class="is-size-7 has-text-grey-light mt-2">Build 20260204</p>
 			</div>
 		</footer>
 
-		<script src="./js/index.js" async defer></script>
+		<script src="./js/index.js?v=20260204" defer></script>
 	</body>
 </html>

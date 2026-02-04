@@ -22,7 +22,21 @@ function get192LanIP() {
 	return null;
 }
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+	express.static(path.join(__dirname, 'public'), {
+		// iOS Safari (and home-screen web apps) can be very sticky with cached JS.
+		// Force revalidation so new client code reliably ships after deploys.
+		setHeaders(res, filePath) {
+			if (
+				filePath.endsWith('.html') ||
+				filePath.endsWith('.js') ||
+				filePath.endsWith('.css')
+			) {
+				res.setHeader('Cache-Control', 'no-store');
+			}
+		},
+	})
+);
 app.set('views', path.join(__dirname, 'public'));
 
 app.engine('html', ejs.renderFile);

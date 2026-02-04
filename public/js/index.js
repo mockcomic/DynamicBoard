@@ -1,5 +1,31 @@
 const messagesList = document.getElementById('messages');
-const ipAddress = document.URL;
+const apiBase = window.location.origin;
+
+function consumePendingToast() {
+	try {
+		const raw = sessionStorage.getItem('pendingToast');
+		if (!raw) return;
+		sessionStorage.removeItem('pendingToast');
+		const t = JSON.parse(raw);
+		if (t && t.message) showToast(t.message, t.type || 'success');
+	} catch (err) {
+		// If toast parsing fails, don't break the page.
+		console.log(err);
+	}
+}
+
+window.addEventListener('error', evt => {
+	// iOS Safari can fail silently; surface errors as a toast.
+	const msg = evt?.error?.message || evt?.message || 'Unknown error';
+	showToast(`Error: ${msg}`, 'danger');
+});
+
+window.addEventListener('unhandledrejection', evt => {
+	const msg =
+		evt?.reason?.message ||
+		(typeof evt?.reason === 'string' ? evt.reason : 'Unhandled promise error');
+	showToast(`Error: ${msg}`, 'danger');
+});
 
 const gridX = 22;
 const gridY = 6;
@@ -30,13 +56,15 @@ let codex = {};
 // #region Data
 async function pushData(data) {
 	try {
-		await fetch(`${ipAddress}api/`, {
+		const res = await fetch(`${apiBase}/api`, {
 			headers: { 'Content-Type': 'application/json' },
 			method: 'PUT',
 			body: JSON.stringify(data),
 		});
+		return res.ok;
 	} catch (err) {
 		console.log(err);
+		return false;
 	}
 }
 
@@ -62,7 +90,7 @@ function loadData(array) {
 }
 
 async function getData() {
-	const res = await fetch(`${ipAddress}api/`);
+	const res = await fetch(`${apiBase}/api`, { cache: 'no-store' });
 	configData = await res.json();
 	checkConfig(configData);
 	loadData(configData);
@@ -169,57 +197,83 @@ function displayMessage() {
 }
 
 async function submitData(type) {
-	let msg, data;
-	if (type === 'grid') {
-		msg = displayMessage();
-		data = JSON.stringify(convertData());
-		clearGrid();
-	} else if (type === 'text') {
-		const textInputData = document.getElementById('textData');
-		msg = textInputData.value;
-		data = textInputData.value;
-		textInputData.value = '';
-	} else {
-		console.error('Invalid type for submitData');
-		return;
+	try {
+		if (!configData || !Array.isArray(configData.messages)) {
+			showToast('Still loading… try again in a second', 'warning');
+			return;
+		}
+
+		let msg, data;
+		if (type === 'grid') {
+			msg = displayMessage();
+			data = JSON.stringify(convertData());
+			clearGrid();
+		} else if (type === 'text') {
+			const textInputData = document.getElementById('textData');
+			msg = textInputData.value;
+			data = textInputData.value;
+			textInputData.value = '';
+		} else {
+			console.error('Invalid type for submitData');
+			return;
+		}
+
+		const { startDate, endDate } = getDateRange();
+
+		//! Check if vaild date range
+		if (
+			eventData.isEvent &&
+			(endDate < startDate || !endDate || !startDate)
+		) {
+			console.log('Invalid date range');
+			showCustomAlert(
+				'Invliad date range. Please enter a vaild date or uncheck "Show Date Range".'
+			);
+			return;
+		}
+
+		eventData.startDate = startDate;
+		eventData.endDate = endDate;
+
+		configData.messages.push({
+			id: Date.now() + Math.floor(Math.random() * 1000),
+			type,
+			msg,
+			data,
+			eventData: eventData,
+		});
+
+		// Reset to a fresh object (avoids accidentally mutating the shared default)
+		eventData = { ...eventDataDefualt };
+
+		const saved = await pushData(configData);
+		if (saved) {
+			// Show the success toast after reload (iOS can be finicky about toasts
+			// right before navigation).
+			sessionStorage.setItem(
+				'pendingToast',
+				JSON.stringify({ message: 'Saved message', type: 'success' })
+			);
+			window.location.reload();
+		} else {
+			showToast('Save failed', 'danger');
+		}
+	} catch (err) {
+		console.log(err);
+		showToast(`Save failed: ${err?.message || err}`, 'danger');
 	}
-
-	const { startDate, endDate } = getDateRange();
-
-	//! Check if vaild date range
-	if (eventData.isEvent && (endDate < startDate || !endDate || !startDate)) {
-		console.log('Invalid date range');
-		showCustomAlert(
-			'Invliad date range. Please enter a vaild date or uncheck "Show Date Range".'
-		);
-		return;
-	}
-
-	eventData.startDate = startDate;
-	eventData.endDate = endDate;
-
-	configData.messages.push({
-		id: Date.now() + Math.floor(Math.random() * 1000),
-		type,
-		msg,
-		data,
-		eventData: eventData,
-	});
-
-	eventData = eventDataDefualt;
-
-	window.location.reload();
-
-	pushData(configData);
-	loadData(configData);
 }
 
 function getDateRange() {
-	startDate = document.getElementById('startDateText').value;
-	endDate = document.getElementById('endDateText').value;
+	const startEl = document.getElementById('startDateText');
+	const endEl = document.getElementById('endDateText');
 
-	document.getElementById('startDateText').valueAsNumber = NaN;
-	document.getElementById('endDateText').valueAsNumber = NaN;
+	const startDate = startEl ? startEl.value : '';
+	const endDate = endEl ? endEl.value : '';
+
+	// Clearing via .value is more compatible than valueAsNumber on iOS.
+	if (startEl) startEl.value = '';
+	if (endEl) endEl.value = '';
 
 	return { startDate, endDate };
 }
@@ -235,25 +289,28 @@ async function deleteEntry(id) {
 			}
 		));
 		configData.messages = filteredData;
-		pushData(configData);
+		const saved = await pushData(configData);
+		if (saved) showToast('Deleted message');
+		else showToast('Delete failed', 'danger');
 		loadData(configData);
 	} catch (error) {
 		console.log(error);
+		showToast('Delete failed', 'danger');
 	}
 }
 
 async function sendEntry(data) {
 	try {
-		const response = await fetch(`${ipAddress}api/send`, {
+		const response = await fetch(`${apiBase}/api/send`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(data),
 		});
-		console.log(
-			response.ok ? 'Entry sent successfully' : 'Failed to send entry'
-		);
+		if (response.ok) showToast('Sent to board');
+		else showToast('Send failed', 'danger');
 	} catch (err) {
 		console.log(err);
+		showToast('Send failed', 'danger');
 	}
 }
 
@@ -328,13 +385,25 @@ function createCard(messageData) {
 
 // #region DOM
 
-async function promptApiKey() {
+async function setApiKey() {
 	const apiKey = await window.prompt('Please enter API key');
+	if (!apiKey) return;
 	configData.apiWriteKey = apiKey.trim();
 	configData.isValidKey = true;
-	if (apiKey) {
-		await pushData(configData);
-		window.location.reload();
+	await pushData(configData);
+	window.location.reload();
+}
+
+async function resetApiKey() {
+	configData.apiWriteKey = '';
+	configData.isValidKey = false;
+	const saved = await pushData(configData);
+	if (saved) {
+		showToast('API key reset');
+		document.getElementById('api-key-warning').style.display = 'block';
+		setTimeout(() => setApiKey(), 250);
+	} else {
+		showToast('Failed to reset API key', 'danger');
 	}
 }
 
@@ -359,6 +428,34 @@ function showCustomAlert(message) {
 	}, 5000);
 }
 
+function showToast(message, type = 'success') {
+	const toast = document.createElement('div');
+	toast.className = `notification is-${type}`;
+	toast.style.position = 'fixed';
+	toast.style.top = '20px';
+	toast.style.right = '20px';
+	toast.style.zIndex = '9999';
+	toast.style.opacity = '0';
+	toast.style.transition = 'opacity 0.2s ease';
+	toast.innerHTML = `
+        <button class="delete" onclick="this.parentElement.remove()"></button>
+        ${message}
+    `;
+
+	document.body.appendChild(toast);
+
+	requestAnimationFrame(() => {
+		toast.style.opacity = '1';
+	});
+
+	setTimeout(() => {
+		if (toast.parentElement) {
+			toast.style.opacity = '0';
+			setTimeout(() => toast.remove(), 200);
+		}
+	}, 2500);
+}
+
 document.getElementById('legend-toggle-btn').onclick = () =>
 	document.getElementById('legend-modal').classList.add('is-active');
 
@@ -380,6 +477,7 @@ function toggleRepeatEveryYear() {
 
 document.addEventListener('DOMContentLoaded', () => {
 	toggleDateRangeVisibility();
+	consumePendingToast();
 });
 
 // #endregion

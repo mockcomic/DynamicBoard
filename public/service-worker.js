@@ -1,5 +1,5 @@
-const CACHE_NAME = 'DyanmicBoard-site-cache--v1';
-const DATA_CACHE_NAME = 'Dyanmicboard-data-cache--v1';
+const CACHE_NAME = 'DynamicBoard-site-cache--v2';
+const DATA_CACHE_NAME = 'DynamicBoard-data-cache--v2';
 const FILES_TO_CACHE = [
 	'/',
 	'/index.html',
@@ -8,8 +8,6 @@ const FILES_TO_CACHE = [
 	'/icons/180.png',
 	'/CharCode.json',
 	'/js/index.js',
-	'/js/index.js',
-	'../config.json',
 ];
 
 self.addEventListener('install', function (evt) {

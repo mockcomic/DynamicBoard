@@ -8,6 +8,7 @@ const {
 } = require('../backend/routes/controller');
 
 router.get('/api', async (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
 	fs.readFile('config.json', (err, data) => {
 		if (err) return res.status(400).end();
 		res.status(200).json(JSON.parse(data));
@@ -15,6 +16,7 @@ router.get('/api', async (req, res) => {
 });
 
 router.put('/api', (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
 	const msg = JSON.stringify(req.body);
 	fs.writeFile('config.json', msg, err => {
 		if (err) return res.status(400).json('Error updating JSON');
@@ -23,10 +25,12 @@ router.put('/api', (req, res) => {
 });
 
 router.get('/', (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
 	res.render('index');
 });
 
 router.post('/api/send', (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
 	console.log(req.body);
 	if (req.body.type === 'grid') {
 		sendToVestaboard(JSON.parse(req.body.data), 'grid');
