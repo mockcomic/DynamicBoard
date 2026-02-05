@@ -1,23 +1,73 @@
 # Dynamicboard
 
-## 🎥 Video Demo
+Dynamicboard is a lightweight web app that lets you compose messages for a Vestaboard and send them on a timer or on demand. It supports both free‑text messages and a 22×6 grid editor, plus scheduled “event” messages that only display during a date range.
 
-[Watch the demo](https://github.com/mockcomic/DynamicBoard/assets/1287667/3df06ce9-a22e-4fae-8dfe-7bc9935d1821)
+## Features
 
-## Description
+- 22×6 grid editor with quick navigation
+- Auto‑format text submissions
+- Scheduled messages with date ranges and yearly repeats
+- Timer‑based rotation of saved messages
+- One‑click “Send to Board” for any saved message
 
-Dynamicboard allows you to send messages to your Vestaboard at timed intervals, enhancing communication efficiency.
+## Quick Start
 
-## Available Functions
+1. Install dependencies:
+   - `npm install`
+2. Start the server:
+   - `npm run dev` (auto‑reload) or `npm start`
+3. Open the UI:
+   - `http://localhost:4000`
 
-All functions must be rapped with `{}`. For example, `Christmas is in {tillDate(12,25,2025)}!`
+On first run, a `config.json` file is created in the project root.
 
-- tillDate(dd,nn,yyyy)
-  - Returns how many days till date specified
-  - Will count up after passing the date
-- date()
-  - Returns the current date
+## Configuration (`config.json`)
 
-## Environment Setup
+Add your Vestaboard **Read/Write API key** to `apiWriteKey`.  
+You can find it in the Vestaboard app under **Settings → Advanced Settings → Read/Write API**.
 
-When the program is first launched, it will create a `config.json` file in the same directory. In the config file, enter your `apiWriteKey`, which can be found in the Vestaboard app under `Settings → Advanced Settings → Read/Write API`.
+Key fields:
+
+- `apiWriteKey`: Vestaboard read/write key (required)
+- `isEnabled`: Enable/disable the send loop
+- `timer`: Interval in milliseconds between sends (UI is in minutes)
+- `messages`: Saved messages and event data
+
+## Message Functions
+
+Functions must be wrapped with `{}`. Example:
+
+`Christmas is in {tillDate(12,25,2025)} days!`
+
+Available:
+
+- `tillDate(dd,mm,yyyy)`  
+  Returns the number of days until (or since) the date.
+- `todayDate()`  
+  Returns today’s date in `dd/mm/yyyy` format.
+
+## How Scheduling Works
+
+- Every `timer` interval, the app sends the next message in `messages`.
+- If a message is marked as an **event**, it only sends when the current time is within its date range.
+- Non‑recurring events are removed after their end date passes.
+
+## Docker
+
+Build and run:
+
+- `docker build -t dynamicboard .`
+- `docker run -p 4000:4000 dynamicboard`
+
+## Build a Standalone Binary (optional)
+
+This uses `pkg` to generate platform builds:
+
+- `npm run build:pkg`
+
+Outputs go to `release/`.
+
+## Notes
+
+- Keep your `config.json` secret; it contains your API key.
+- The UI shows a warning banner if the key is missing or invalid.

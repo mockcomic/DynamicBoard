@@ -151,7 +151,7 @@ async function processEvent(messageData) {
 		: moment(eventData.endDate);
 
 	console.log(isYearly, start.isAfter(now));
-	if (now.isBetween(start, end)) {
+	if (now.isBetween(start, end, undefined, '[]')) {
 		console.log('Today is within the range!');
 		return true;
 	} else if (!isYearly && !end.isAfter(now)) {

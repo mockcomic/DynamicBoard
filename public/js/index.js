@@ -81,9 +81,16 @@ function loadData(array) {
 	const timerInput = document.getElementById('timerInput');
 	const timerBtn = document.getElementById('timerInput-btn');
 	timerInput.value = configData.timer / 60000;
-	timerBtn.onclick = function () {
-		configData.timer = timerInput.value * 60000;
-		pushData(configData);
+	timerBtn.onclick = async function () {
+		const minutes = Number(timerInput.value);
+		if (!minutes || minutes <= 0) {
+			showToast('Please enter a valid number of minutes', 'warning');
+			return;
+		}
+		configData.timer = minutes * 60000;
+		const saved = await pushData(configData);
+		if (saved) showToast('Time interval updated');
+		else showToast('Failed to update time interval', 'danger');
 	};
 
 	array.messages.forEach(createCard);
