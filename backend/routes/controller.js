@@ -143,18 +143,37 @@ async function processEvent(messageData) {
 	const isYearly = eventData.repeatEveryYear;
 
 	const now = moment();
-	const start = isYearly
-		? moment(eventData.startDate).year(now.year())
-		: moment(eventData.startDate);
-	const end = isYearly
-		? moment(eventData.endDate).year(now.year())
-		: moment(eventData.endDate);
+	const startRaw = moment(eventData.startDate);
+	const endRaw = moment(eventData.endDate);
+
+	if (!startRaw.isValid() || !endRaw.isValid()) return false;
+
+	let start = startRaw;
+	let end = endRaw;
+
+	if (isYearly) {
+		// Repeat every year based on month/day/time, including ranges that span the year boundary.
+		start = startRaw.clone().year(now.year());
+		end = endRaw.clone().year(now.year());
+
+		if (end.isBefore(start)) {
+			// Example: Dec 1 - Feb 25 should wrap into the next year.
+			if (now.isBefore(end)) {
+				start = start.subtract(1, 'year');
+			} else {
+				end = end.add(1, 'year');
+			}
+		}
+	} else if (end.isBefore(start)) {
+		console.warn('Invalid date range on message', messageData.id);
+		return false;
+	}
 
 	console.log(isYearly, start.isAfter(now));
 	if (now.isBetween(start, end, undefined, '[]')) {
 		console.log('Today is within the range!');
 		return true;
-	} else if (!isYearly && !end.isAfter(now)) {
+	} else if (!isYearly && now.isAfter(end)) {
 		console.log('Deleting message');
 		await deleteMessage(messageData.id);
 	}

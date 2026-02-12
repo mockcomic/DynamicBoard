@@ -41,10 +41,10 @@ Functions must be wrapped with `{}`. Example:
 
 Available:
 
-- `tillDate(dd,mm,yyyy)`  
+- `tillDate(mm,dd,yyyy)`  
   Returns the number of days until (or since) the date.
 - `todayDate()`  
-  Returns today’s date in `dd/mm/yyyy` format.
+  Returns today’s date in `mm,dd,yyyy` format.
 
 ## How Scheduling Works
 

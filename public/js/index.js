@@ -228,9 +228,16 @@ async function submitData(type) {
 		const { startDate, endDate } = getDateRange();
 
 		//! Check if vaild date range
+		const startVal = startDate ? new Date(startDate) : null;
+		const endVal = endDate ? new Date(endDate) : null;
+		const invalidOrder =
+			startVal && endVal ? endVal < startVal : false;
+
 		if (
 			eventData.isEvent &&
-			(endDate < startDate || !endDate || !startDate)
+			(!startVal ||
+				!endVal ||
+				(!eventData.repeatEveryYear && invalidOrder))
 		) {
 			console.log('Invalid date range');
 			showCustomAlert(
