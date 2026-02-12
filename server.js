@@ -3,6 +3,7 @@ const path = require('path');
 const ejs = require('ejs');
 const routes = require('./routes/routes');
 const os = require('os');
+const { logInfo } = require('./backend/utils/logger');
 const app = express();
 const port = 4000;
 
@@ -48,6 +49,8 @@ app.use('/', routes);
 
 app.listen(port, () => {
 	const lanIP = get192LanIP() || '127.0.0.1';
-	console.log(`Local:   http://localhost:${port}`);
-	console.log(`Network: http://${lanIP}:${port}`);
+	logInfo('Server started', {
+		local: `http://localhost:${port}`,
+		network: `http://${lanIP}:${port}`,
+	});
 });

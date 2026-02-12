@@ -1,6 +1,41 @@
 const messagesList = document.getElementById('messages');
 const apiBase = window.location.origin;
 
+function log(level, message, meta) {
+	const prefix = `[Dynamicboard] [${level.toUpperCase()}] ${message}`;
+	const output = meta instanceof Error ? meta.message : meta;
+	switch (level) {
+		case 'error':
+			output !== undefined ? console.error(prefix, output) : console.error(prefix);
+			break;
+		case 'warn':
+			output !== undefined ? console.warn(prefix, output) : console.warn(prefix);
+			break;
+		default:
+			output !== undefined ? console.log(prefix, output) : console.log(prefix);
+			break;
+	}
+}
+
+async function readServerError(res) {
+	try {
+		const text = await res.text();
+		if (!text) return res.statusText || `HTTP ${res.status}`;
+		try {
+			const json = JSON.parse(text);
+			if (json.error && json.details) {
+				return `${json.error}: ${json.details}`;
+			}
+			return json.error || json.message || text;
+		} catch {
+			return text;
+		}
+	} catch (err) {
+		log('warn', 'Failed to read server error', err);
+		return res.statusText || `HTTP ${res.status}`;
+	}
+}
+
 function consumePendingToast() {
 	try {
 		const raw = sessionStorage.getItem('pendingToast');
@@ -10,13 +45,14 @@ function consumePendingToast() {
 		if (t && t.message) showToast(t.message, t.type || 'success');
 	} catch (err) {
 		// If toast parsing fails, don't break the page.
-		console.log(err);
+		log('warn', 'Failed to read pending toast', err);
 	}
 }
 
 window.addEventListener('error', evt => {
 	// iOS Safari can fail silently; surface errors as a toast.
 	const msg = evt?.error?.message || evt?.message || 'Unknown error';
+	log('error', 'Window error', msg);
 	showToast(`Error: ${msg}`, 'danger');
 });
 
@@ -24,6 +60,7 @@ window.addEventListener('unhandledrejection', evt => {
 	const msg =
 		evt?.reason?.message ||
 		(typeof evt?.reason === 'string' ? evt.reason : 'Unhandled promise error');
+	log('error', 'Unhandled rejection', msg);
 	showToast(`Error: ${msg}`, 'danger');
 });
 
@@ -49,8 +86,19 @@ let configData = {};
 let codex = {};
 
 (async function () {
-	const response = await fetch('../CharCode.json');
-	codex = await response.json();
+	try {
+		const response = await fetch('../CharCode.json');
+		if (!response.ok) {
+			const errorMessage = await readServerError(response);
+			log('error', 'Failed to load CharCode.json', errorMessage);
+			showToast(`Failed to load character data: ${errorMessage}`, 'danger');
+			return;
+		}
+		codex = await response.json();
+	} catch (err) {
+		log('error', 'Failed to load CharCode.json', err);
+		showToast(`Failed to load character data: ${err?.message || err}`, 'danger');
+	}
 })();
 
 // #region Data
@@ -61,10 +109,15 @@ async function pushData(data) {
 			method: 'PUT',
 			body: JSON.stringify(data),
 		});
-		return res.ok;
+		if (!res.ok) {
+			const errorMessage = await readServerError(res);
+			log('error', 'pushData failed', { status: res.status, errorMessage });
+			return { ok: false, errorMessage };
+		}
+		return { ok: true };
 	} catch (err) {
-		console.log(err);
-		return false;
+		log('error', 'pushData failed', err);
+		return { ok: false, errorMessage: err?.message || err };
 	}
 }
 
@@ -73,9 +126,12 @@ function loadData(array) {
 
 	const checkboxInput = document.getElementById('isEnabled');
 	checkboxInput.checked = !!array.isEnabled;
-	checkboxInput.onclick = function () {
+	checkboxInput.onclick = async function () {
 		configData.isEnabled = !configData.isEnabled;
-		pushData(configData);
+		const result = await pushData(configData);
+		if (!result.ok) {
+			showToast(`Failed to update setting: ${result.errorMessage}`, 'danger');
+		}
 	};
 
 	const timerInput = document.getElementById('timerInput');
@@ -88,19 +144,37 @@ function loadData(array) {
 			return;
 		}
 		configData.timer = minutes * 60000;
-		const saved = await pushData(configData);
-		if (saved) showToast('Time interval updated');
-		else showToast('Failed to update time interval', 'danger');
+		const result = await pushData(configData);
+		if (result.ok) showToast('Time interval updated');
+		else
+			showToast(
+				`Failed to update time interval: ${result.errorMessage}`,
+				'danger'
+			);
 	};
 
 	array.messages.forEach(createCard);
 }
 
 async function getData() {
-	const res = await fetch(`${apiBase}/api`, { cache: 'no-store' });
-	configData = await res.json();
-	checkConfig(configData);
-	loadData(configData);
+	try {
+		const res = await fetch(`${apiBase}/api`, { cache: 'no-store' });
+		if (!res.ok) {
+			const errorMessage = await readServerError(res);
+			log('error', 'Failed to load config', {
+				status: res.status,
+				errorMessage,
+			});
+			showToast(`Failed to load config: ${errorMessage}`, 'danger');
+			return;
+		}
+		configData = await res.json();
+		checkConfig(configData);
+		loadData(configData);
+	} catch (err) {
+		log('error', 'Failed to load config', err);
+		showToast(`Failed to load config: ${err?.message || err}`, 'danger');
+	}
 }
 
 function convertData() {
@@ -115,7 +189,11 @@ function checkConfig(configData) {
 	if (!configData.apiWriteKey || configData.isValidKey == false) {
 		document.getElementById('api-key-warning').style.display = 'block';
 	}
-	pushData(configData);
+	pushData(configData).then(result => {
+		if (!result.ok) {
+			log('warn', 'Background config save failed', result.errorMessage);
+		}
+	});
 }
 
 // #endregion
@@ -221,7 +299,7 @@ async function submitData(type) {
 			data = textInputData.value;
 			textInputData.value = '';
 		} else {
-			console.error('Invalid type for submitData');
+			log('error', 'Invalid type for submitData', type);
 			return;
 		}
 
@@ -239,7 +317,7 @@ async function submitData(type) {
 				!endVal ||
 				(!eventData.repeatEveryYear && invalidOrder))
 		) {
-			console.log('Invalid date range');
+			log('warn', 'Invalid date range');
 			showCustomAlert(
 				'Invliad date range. Please enter a vaild date or uncheck "Show Date Range".'
 			);
@@ -260,8 +338,8 @@ async function submitData(type) {
 		// Reset to a fresh object (avoids accidentally mutating the shared default)
 		eventData = { ...eventDataDefualt };
 
-		const saved = await pushData(configData);
-		if (saved) {
+		const result = await pushData(configData);
+		if (result.ok) {
 			// Show the success toast after reload (iOS can be finicky about toasts
 			// right before navigation).
 			sessionStorage.setItem(
@@ -270,10 +348,10 @@ async function submitData(type) {
 			);
 			window.location.reload();
 		} else {
-			showToast('Save failed', 'danger');
+			showToast(`Save failed: ${result.errorMessage}`, 'danger');
 		}
 	} catch (err) {
-		console.log(err);
+		log('error', 'submitData failed', err);
 		showToast(`Save failed: ${err?.message || err}`, 'danger');
 	}
 }
@@ -303,12 +381,12 @@ async function deleteEntry(id) {
 			}
 		));
 		configData.messages = filteredData;
-		const saved = await pushData(configData);
-		if (saved) showToast('Deleted message');
-		else showToast('Delete failed', 'danger');
+		const result = await pushData(configData);
+		if (result.ok) showToast('Deleted message');
+		else showToast(`Delete failed: ${result.errorMessage}`, 'danger');
 		loadData(configData);
 	} catch (error) {
-		console.log(error);
+		log('error', 'deleteEntry failed', error);
 		showToast('Delete failed', 'danger');
 	}
 }
@@ -320,11 +398,16 @@ async function sendEntry(data) {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(data),
 		});
-		if (response.ok) showToast('Sent to board');
-		else showToast('Send failed', 'danger');
+		if (response.ok) {
+			showToast('Sent to board');
+		} else {
+			const errorMessage = await readServerError(response);
+			log('error', 'Send failed', { status: response.status, errorMessage });
+			showToast(`Send failed: ${errorMessage}`, 'danger');
+		}
 	} catch (err) {
-		console.log(err);
-		showToast('Send failed', 'danger');
+		log('error', 'Send failed', err);
+		showToast(`Send failed: ${err?.message || err}`, 'danger');
 	}
 }
 
@@ -404,20 +487,24 @@ async function setApiKey() {
 	if (!apiKey) return;
 	configData.apiWriteKey = apiKey.trim();
 	configData.isValidKey = true;
-	await pushData(configData);
-	window.location.reload();
+	const result = await pushData(configData);
+	if (result.ok) {
+		window.location.reload();
+	} else {
+		showToast(`Failed to save API key: ${result.errorMessage}`, 'danger');
+	}
 }
 
 async function resetApiKey() {
 	configData.apiWriteKey = '';
 	configData.isValidKey = false;
-	const saved = await pushData(configData);
-	if (saved) {
+	const result = await pushData(configData);
+	if (result.ok) {
 		showToast('API key reset');
 		document.getElementById('api-key-warning').style.display = 'block';
 		setTimeout(() => setApiKey(), 250);
 	} else {
-		showToast('Failed to reset API key', 'danger');
+		showToast(`Failed to reset API key: ${result.errorMessage}`, 'danger');
 	}
 }
 

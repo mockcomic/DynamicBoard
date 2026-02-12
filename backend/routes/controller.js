@@ -1,5 +1,6 @@
 const fs = require('fs');
 const moment = require('moment');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 let config = null;
 
@@ -45,7 +46,11 @@ const functionCalls = {
 };
 
 function updateConfig(data) {
-	fs.writeFileSync('./config.json', JSON.stringify(data));
+	try {
+		fs.writeFileSync('./config.json', JSON.stringify(data));
+	} catch (error) {
+		logError('Failed to write config.json', error);
+	}
 }
 
 function configCheck() {
@@ -59,14 +64,14 @@ function configCheck() {
 			isValidKey: null,
 			messages: [],
 		};
-		console.log('config.json does not exist, creating it...');
+		logWarn('config.json does not exist, creating it...');
 		updateConfig(defaultConfig);
-		console.log(`Successfully created ${filePath}`);
+		logInfo(`Successfully created ${filePath}`);
 	}
 
 	config = JSON.parse(fs.readFileSync(filePath));
 	if (!config.apiWriteKey || null) {
-		console.warn('No API key found in config.json. Please add it.');
+		logWarn('No API key found in config.json. Please add it.');
 	}
 }
 
@@ -79,7 +84,10 @@ function checkVariable(string) {
 
 	if (functionCalls[functionName]) {
 		const result = functionCalls[functionName].callBack(params.split(','));
-		console.log(string.replace(placeholder, result));
+		logInfo('Template variable replaced', {
+			placeholder,
+			result,
+		});
 		return string.replace(placeholder, result);
 	}
 
@@ -99,7 +107,11 @@ async function getCurrentMessage() {
 }
 
 async function sendToVestaboard(data, dataType) {
-	console.log(data);
+	logInfo('Sending to Vestaboard', { type: dataType });
+	if (!config?.apiWriteKey) {
+		logWarn('Missing apiWriteKey, cannot send to Vestaboard');
+		return { ok: false, status: 400, statusText: 'missing_api_key' };
+	}
 	try {
 		const body =
 			dataType === 'grid'
@@ -114,26 +126,35 @@ async function sendToVestaboard(data, dataType) {
 			},
 			method: 'POST',
 		});
-		console.log(res.status + ' ' + res.statusText);
+		logInfo('Vestaboard response', {
+			status: res.status,
+			statusText: res.statusText,
+		});
 		if (res.status === 403) {
-			console.log('Invalid apiWriteKey, isValidKey set to false');
-			console.log(config.apiWriteKey);
+			logWarn('Invalid apiWriteKey, isValidKey set to false');
 			config.isValidKey = false;
 			updateConfig(config);
 		}
+		return { ok: res.ok, status: res.status, statusText: res.statusText };
 	} catch (error) {
-		console.error('Error in sendToVestaboard:', error);
+		logError('Error in sendToVestaboard', error);
 		updateConfig(config);
+		return { ok: false, status: 0, statusText: 'network_error' };
 	}
 }
 
 function deleteMessage(id) {
 	const filteredData = (data.messages = data.messages.filter(message => {
-		console.log(message.id, id, message.id == id);
+		logInfo('Evaluating message for delete', {
+			messageId: message.id,
+			targetId: id,
+			match: message.id == id,
+		});
 		return message.id != id;
 	}));
 	data.messages = filteredData;
 	updateConfig(data);
+	logInfo('Deleted message from config', { id });
 }
 
 async function processEvent(messageData) {
@@ -165,16 +186,21 @@ async function processEvent(messageData) {
 			}
 		}
 	} else if (end.isBefore(start)) {
-		console.warn('Invalid date range on message', messageData.id);
+		logWarn('Invalid date range on message', { id: messageData.id });
 		return false;
 	}
 
-	console.log(isYearly, start.isAfter(now));
+	logInfo('Event range check', {
+		id: messageData.id,
+		isYearly,
+		start: start.toISOString(),
+		end: end.toISOString(),
+	});
 	if (now.isBetween(start, end, undefined, '[]')) {
-		console.log('Today is within the range!');
+		logInfo('Event is within range', { id: messageData.id });
 		return true;
 	} else if (!isYearly && now.isAfter(end)) {
-		console.log('Deleting message');
+		logInfo('Deleting expired non-yearly message', { id: messageData.id });
 		await deleteMessage(messageData.id);
 	}
 
@@ -183,12 +209,14 @@ async function processEvent(messageData) {
 
 async function processMessages() {
 	if (!data?.isEnabled) {
+		logInfo('Message loop disabled');
 		isLooping = false;
 		return;
 	}
 
 	const len = Array.isArray(data?.messages) ? data.messages.length : 0;
 	if (len === 0) {
+		logInfo('No messages to process');
 		isLooping = false;
 		return;
 	}
@@ -215,6 +243,7 @@ async function processMessages() {
 		}
 
 		lastMsg = idx;
+		logInfo('Processed message', { id: messageData.id, index: idx });
 		return;
 	}
 
@@ -225,6 +254,7 @@ function loopMessages() {
 	if (isLooping) return;
 
 	isLooping = true;
+	logInfo('Starting message loop');
 
 	const loop = async function () {
 		await processMessages();
@@ -235,6 +265,7 @@ function loopMessages() {
 		} else {
 			isLooping = false;
 			clearTimeout(intervalId);
+			logInfo('Stopping message loop');
 		}
 	};
 
@@ -246,7 +277,10 @@ function main() {
 		configCheck();
 		if (config.apiWriteKey) {
 			fs.readFile('config.json', function (err, file) {
-				if (err) throw err;
+				if (err) {
+					logError('Failed to read config.json', err);
+					return;
+				}
 
 				const newData = JSON.parse(file);
 
@@ -257,7 +291,7 @@ function main() {
 
 				if (data.isEnabled) {
 					if (!wasEnabled || timerChanged) {
-						console.log('Updating loop with new timer: ' + data.timer + 'ms');
+						logInfo('Updating loop with new timer', { timer: data.timer });
 						clearTimeout(intervalId);
 						isLooping = false;
 						loopMessages();
