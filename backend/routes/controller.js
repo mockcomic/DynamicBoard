@@ -15,20 +15,29 @@ const functionCalls = {
 		description:
 			'Returns the difference in days between today and the given date.',
 		callBack: arr => {
-			const today = new Date();
-			const yyyy = today.getFullYear();
-			let mm = today.getMonth() + 1; // Months start at 0!
-			let dd = today.getDate();
+			const [monthRaw, dayRaw, yearRaw] = arr;
+			const month = Number(monthRaw);
+			const day = Number(dayRaw);
+			const year = Number(yearRaw);
 
-			let date1 = new Date(`$${mm}/${dd},${yyyy}`);
-			let date2 = new Date(`${arr[0]}/${arr[1]}/${arr[2]}`);
+			if (![month, day, year].every(Number.isFinite)) {
+				logWarn('Invalid tillDate arguments', { args: arr });
+				return NaN;
+			}
 
-			let Difference_In_Time = date2.getTime() - date1.getTime();
-			let Difference_In_Days = Difference_In_Time / (1000 * 3600 * 24);
+			const targetDate = moment(
+				`${year}-${month}-${day}`,
+				'YYYY-M-D',
+				true
+			).startOf('day');
 
-			return Difference_In_Days < 0
-				? Math.round(Difference_In_Days) * -1
-				: Math.round(Difference_In_Days);
+			if (!targetDate.isValid()) {
+				logWarn('Invalid tillDate date', { args: arr });
+				return NaN;
+			}
+
+			const today = moment().startOf('day');
+			return Math.abs(targetDate.diff(today, 'days'));
 		},
 	},
 	todayDate: {
@@ -80,10 +89,17 @@ function checkVariable(string) {
 	if (!match) return string;
 
 	const [placeholder, command] = match;
-	const [functionName, params] = command.split(/\((.+)\)/).filter(Boolean);
+	const commandMatch = command.match(/^([a-zA-Z0-9_]+)(?:\((.*)\))?$/);
+	if (!commandMatch) return string;
+
+	const [, functionName, rawParams = ''] = commandMatch;
+	const params =
+		rawParams === ''
+			? []
+			: rawParams.split(',').map(param => param.trim());
 
 	if (functionCalls[functionName]) {
-		const result = functionCalls[functionName].callBack(params.split(','));
+		const result = functionCalls[functionName].callBack(params);
 		logInfo('Template variable replaced', {
 			placeholder,
 			result,
@@ -302,9 +318,31 @@ function main() {
 	}, 5000);
 }
 
-main();
+if (process.env.DYNAMICBOARD_DISABLE_MAIN !== '1') {
+	main();
+}
+
+function __setConfigForTests(nextConfig) {
+	config = nextConfig;
+}
+
+function __getConfigForTests() {
+	return config;
+}
+
+function __resetStateForTests() {
+	clearTimeout(intervalId);
+	intervalId = null;
+	config = null;
+	data = null;
+	lastMsg = null;
+	isLooping = false;
+}
 
 module.exports = {
 	checkVariable: checkVariable,
 	sendToVestaboard: sendToVestaboard,
+	__setConfigForTests,
+	__getConfigForTests,
+	__resetStateForTests,
 };
