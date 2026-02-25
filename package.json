@@ -3,6 +3,7 @@
 	"version": "1.0.1",
 	"description": "",
 	"main": "server.js",
+	"bin": "server.js",
 	"scripts": {
 		"start": "node server.js",
 		"start:prod": "node server.js",
