@@ -49,6 +49,44 @@ function consumePendingToast() {
 	}
 }
 
+function registerServiceWorker() {
+	if (!('serviceWorker' in navigator)) {
+		log('warn', 'Service workers are not supported in this browser');
+		return;
+	}
+
+	window.addEventListener('load', () => {
+		navigator.serviceWorker
+			.register('/service-worker.js')
+			.then(registration => {
+				log('info', 'Service worker registered', {
+					scope: registration.scope,
+				});
+
+				if (registration.waiting && navigator.serviceWorker.controller) {
+					showToast('App update ready. Refresh to apply it.', 'info');
+				}
+
+				registration.addEventListener('updatefound', () => {
+					const installingWorker = registration.installing;
+					if (!installingWorker) return;
+
+					installingWorker.addEventListener('statechange', () => {
+						if (
+							installingWorker.state === 'installed' &&
+							navigator.serviceWorker.controller
+						) {
+							showToast('New app version available. Refresh to update.', 'info');
+						}
+					});
+				});
+			})
+			.catch(err => {
+				log('warn', 'Service worker registration failed', err);
+			});
+	});
+}
+
 window.addEventListener('error', evt => {
 	// iOS Safari can fail silently; surface errors as a toast.
 	const msg = evt?.error?.message || evt?.message || 'Unknown error';
@@ -584,6 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // #endregion
 
 function main() {
+	registerServiceWorker();
 	createGrid();
 	getData();
 }

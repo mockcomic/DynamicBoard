@@ -86,6 +86,16 @@ test('todayDate placeholder also works without parentheses', () => {
 	assert.equal(checkVariable('Date {todayDate}'), expected);
 });
 
+test('todayIso returns date in YYYY-MM-DD format', () => {
+	const output = checkVariable('ISO {todayIso()}');
+	assert.match(output, /^ISO \d{4}-\d{2}-\d{2}$/);
+});
+
+test('nowTime returns time in HH:mm format', () => {
+	const output = checkVariable('Time {nowTime()}');
+	assert.match(output, /^Time \d{2}:\d{2}$/);
+});
+
 test('sendToVestaboard reports missing api key when not configured', async () => {
 	let fetchCalled = false;
 	global.fetch = async () => {

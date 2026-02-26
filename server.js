@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const ejs = require('ejs');
-const routes = require('./routes/routes');
+const routes = require('./backend/routes');
 const os = require('os');
 const { logInfo } = require('./backend/utils/logger');
 const app = express();

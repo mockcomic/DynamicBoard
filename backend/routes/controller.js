@@ -1,11 +1,14 @@
-const fs = require('fs');
 const moment = require('moment');
 const { logInfo, logWarn, logError } = require('../utils/logger');
+const {
+	ensureConfigSync,
+	readConfigSync,
+	writeConfigSync,
+} = require('../services/config-store');
 
 let config = null;
-
 let isLooping = false;
-let data = null;
+let runtimeData = null;
 let intervalId = null;
 let lastMsg = null;
 
@@ -44,43 +47,44 @@ const functionCalls = {
 		name: 'todayDate',
 		description: 'Returns todays date.',
 		callBack: () => {
-			return new Date()
-				.toISOString()
-				.slice(0, 10)
-				.split('-')
-				.reverse()
-				.join('/');
+			return new Date().toISOString().slice(0, 10).split('-').reverse().join('/');
+		},
+	},
+	todayIso: {
+		name: 'todayIso',
+		description: 'Returns today in YYYY-MM-DD format.',
+		callBack: () => {
+			return new Date().toISOString().slice(0, 10);
+		},
+	},
+	nowTime: {
+		name: 'nowTime',
+		description: 'Returns current local time in HH:mm format.',
+		callBack: () => {
+			return moment().format('HH:mm');
 		},
 	},
 };
 
-function updateConfig(data) {
+function persistConfig(nextConfig) {
 	try {
-		fs.writeFileSync('./config.json', JSON.stringify(data));
+		writeConfigSync(nextConfig);
 	} catch (error) {
 		logError('Failed to write config.json', error);
 	}
 }
 
-function configCheck() {
-	const filePath = './config.json';
-
-	if (!fs.existsSync(filePath)) {
-		const defaultConfig = {
-			isEnabled: true,
-			timer: 120000,
-			apiWriteKey: null,
-			isValidKey: null,
-			messages: [],
-		};
-		logWarn('config.json does not exist, creating it...');
-		updateConfig(defaultConfig);
-		logInfo(`Successfully created ${filePath}`);
-	}
-
-	config = JSON.parse(fs.readFileSync(filePath));
-	if (!config.apiWriteKey || null) {
-		logWarn('No API key found in config.json. Please add it.');
+function loadConfig() {
+	try {
+		ensureConfigSync();
+		config = readConfigSync();
+		if (!config.apiWriteKey) {
+			logWarn('No API key found in config.json. Please add it.');
+		}
+		return config;
+	} catch (error) {
+		logError('Failed to load config.json', error);
+		return config;
 	}
 }
 
@@ -110,18 +114,6 @@ function checkVariable(string) {
 	return string;
 }
 
-async function getCurrentMessage() {
-	await fetch('https://rw.vestaboard.com/', {
-		headers: {
-			'Content-Type': 'application/json',
-			'X-Vestaboard-Read-Write-Key': apiWriteKey,
-		},
-		method: 'GET',
-	}).then(function (res) {
-		return res.json();
-	});
-}
-
 async function sendToVestaboard(data, dataType) {
 	logInfo('Sending to Vestaboard', { type: dataType });
 	if (!config?.apiWriteKey) {
@@ -149,27 +141,33 @@ async function sendToVestaboard(data, dataType) {
 		if (res.status === 403) {
 			logWarn('Invalid apiWriteKey, isValidKey set to false');
 			config.isValidKey = false;
-			updateConfig(config);
+			persistConfig(config);
 		}
 		return { ok: res.ok, status: res.status, statusText: res.statusText };
 	} catch (error) {
 		logError('Error in sendToVestaboard', error);
-		updateConfig(config);
+		if (config) {
+			persistConfig(config);
+		}
 		return { ok: false, status: 0, statusText: 'network_error' };
 	}
 }
 
 function deleteMessage(id) {
-	const filteredData = (data.messages = data.messages.filter(message => {
+	if (!Array.isArray(runtimeData?.messages)) return;
+
+	const filteredData = runtimeData.messages.filter(message => {
 		logInfo('Evaluating message for delete', {
 			messageId: message.id,
 			targetId: id,
 			match: message.id == id,
 		});
 		return message.id != id;
-	}));
-	data.messages = filteredData;
-	updateConfig(data);
+	});
+
+	runtimeData.messages = filteredData;
+	config = runtimeData;
+	persistConfig(runtimeData);
 	logInfo('Deleted message from config', { id });
 }
 
@@ -224,13 +222,13 @@ async function processEvent(messageData) {
 }
 
 async function processMessages() {
-	if (!data?.isEnabled) {
+	if (!runtimeData?.isEnabled) {
 		logInfo('Message loop disabled');
 		isLooping = false;
 		return;
 	}
 
-	const len = Array.isArray(data?.messages) ? data.messages.length : 0;
+	const len = Array.isArray(runtimeData?.messages) ? runtimeData.messages.length : 0;
 	if (len === 0) {
 		logInfo('No messages to process');
 		isLooping = false;
@@ -240,12 +238,12 @@ async function processMessages() {
 	let idx = lastMsg == null ? 0 : (lastMsg + 1) % len;
 
 	for (let attempts = 0; attempts < len; attempts++) {
-		const messageData = data.messages[idx];
+		const messageData = runtimeData.messages[idx];
 
 		if (messageData?.eventData?.isEvent === true) {
 			const validMessage = await processEvent(messageData);
 			if (!validMessage) {
-				await configCheck();
+				runtimeData = loadConfig();
 				idx = (idx + 1) % len;
 				continue;
 			}
@@ -275,9 +273,9 @@ function loopMessages() {
 	const loop = async function () {
 		await processMessages();
 
-		if (data && data.isEnabled) {
+		if (runtimeData && runtimeData.isEnabled) {
 			// Schedule next loop using the updated timer
-			intervalId = setTimeout(loop, data.timer);
+			intervalId = setTimeout(loop, runtimeData.timer);
 		} else {
 			isLooping = false;
 			clearTimeout(intervalId);
@@ -289,31 +287,22 @@ function loopMessages() {
 }
 
 function main() {
-	setInterval(function () {
-		configCheck();
-		if (config.apiWriteKey) {
-			fs.readFile('config.json', function (err, file) {
-				if (err) {
-					logError('Failed to read config.json', err);
-					return;
-				}
+	setInterval(() => {
+		const nextConfig = loadConfig();
+		if (!nextConfig?.apiWriteKey) {
+			return;
+		}
 
-				const newData = JSON.parse(file);
+		const wasEnabled = runtimeData?.isEnabled;
+		const timerChanged = runtimeData?.timer !== nextConfig.timer;
 
-				const wasEnabled = data?.isEnabled;
-				const timerChanged = data?.timer !== newData.timer;
+		runtimeData = nextConfig;
 
-				data = newData;
-
-				if (data.isEnabled) {
-					if (!wasEnabled || timerChanged) {
-						logInfo('Updating loop with new timer', { timer: data.timer });
-						clearTimeout(intervalId);
-						isLooping = false;
-						loopMessages();
-					}
-				}
-			});
+		if (runtimeData.isEnabled && (!wasEnabled || timerChanged)) {
+			logInfo('Updating loop with new timer', { timer: runtimeData.timer });
+			clearTimeout(intervalId);
+			isLooping = false;
+			loopMessages();
 		}
 	}, 5000);
 }
@@ -324,6 +313,7 @@ if (process.env.DYNAMICBOARD_DISABLE_MAIN !== '1') {
 
 function __setConfigForTests(nextConfig) {
 	config = nextConfig;
+	runtimeData = nextConfig;
 }
 
 function __getConfigForTests() {
@@ -334,7 +324,7 @@ function __resetStateForTests() {
 	clearTimeout(intervalId);
 	intervalId = null;
 	config = null;
-	data = null;
+	runtimeData = null;
 	lastMsg = null;
 	isLooping = false;
 }

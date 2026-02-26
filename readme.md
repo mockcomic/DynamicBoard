@@ -21,6 +21,14 @@ Dynamicboard is a lightweight web app that lets you compose messages for a Vesta
 
 On first run, a `config.json` file is created in the project root.
 
+## Project Structure
+
+- `backend/routes/` - Express route handlers and API endpoints
+- `backend/services/` - Shared backend services (for example config storage)
+- `backend/utils/` - Backend utilities (logging)
+- `public/` - Frontend app, static assets, manifest, and service worker
+- `public/js/app.js` - Main client-side application script
+
 ## Configuration (`config.json`)
 
 Add your Vestaboard **Read/Write API key** to `apiWriteKey`.  
@@ -45,6 +53,10 @@ Available:
   Returns the number of days until (or since) the date.
 - `todayDate()`  
   Returns today’s date in `mm,dd,yyyy` format.
+- `todayIso()`  
+  Returns today’s date in `yyyy-mm-dd` format.
+- `nowTime()`  
+  Returns current local time in `HH:mm` (24-hour) format.
 
 ## How Scheduling Works
 

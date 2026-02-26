@@ -1,34 +1,38 @@
 {
 	"name": "Dynamicboard",
 	"short_name": "Dynamicboard",
+	"description": "A dynamic board for creating and managing events.",
+	"id": "/",
 	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "portrait",
+	"theme_color": "#000000",
+	"background_color": "#000000",
 	"icons": [
 		{
-			"src": "icons/192.png",
+			"src": "/icons/192.png",
 			"sizes": "192x192",
 			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "icons/192.png",
+			"src": "/icons/manifest-icon-192.maskable.png",
 			"sizes": "192x192",
 			"type": "image/png",
 			"purpose": "maskable"
 		},
 		{
-			"src": "icons/512.png",
+			"src": "/icons/512.png",
 			"sizes": "512x512",
 			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "icons/512.png",
+			"src": "/icons/manifest-icon-512.maskable.png",
 			"sizes": "512x512",
 			"type": "image/png",
 			"purpose": "maskable"
 		}
-	],
-	"theme_color": "#000000",
-	"display": "fullscreen",
-	"orientation": "portrait"
+	]
 }
