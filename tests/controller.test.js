@@ -78,6 +78,15 @@ test('tillDate supports explicit yearly flag as fourth parameter', () => {
 	assert.equal(checkVariable(input), expected);
 });
 
+test('tillDate explicit false flag keeps absolute mode', () => {
+	const today = moment().startOf('day');
+	const target = today.clone().subtract(7, 'days');
+	const input = `Event was {tillDate(${target.format('M,D,YYYY')},false)} days ago`;
+	const expected = `Event was ${Math.abs(target.diff(today, 'days'))} days ago`;
+
+	assert.equal(checkVariable(input, { repeatEveryYear: true }), expected);
+});
+
 test('birthday returns Happy Birthday on the exact birthday', () => {
 	const today = moment().startOf('day');
 	const month = today.format('M');
@@ -97,6 +106,16 @@ test('birthday returns countdown when inside days-ahead window', () => {
 	assert.equal(checkVariable(input), "Ada's birthday is in 5 days");
 });
 
+test('birthday uses default 30-day window when daysAhead is omitted', () => {
+	const today = moment().startOf('day');
+	const target = today.clone().add(14, 'days');
+	const month = target.format('M');
+	const day = target.format('D');
+	const input = `{birthday(Ada,${month},${day},1994)}`;
+
+	assert.equal(checkVariable(input), "Ada's birthday is in 14 days");
+});
+
 test('birthday returns empty string when outside days-ahead window', () => {
 	const today = moment().startOf('day');
 	const target = today.clone().add(45, 'days');
@@ -105,6 +124,10 @@ test('birthday returns empty string when outside days-ahead window', () => {
 	const input = `{birthday(Ada,${month},${day},1994,30)}`;
 
 	assert.equal(checkVariable(input), '');
+});
+
+test('birthday invalid daysAhead is replaced with NaN', () => {
+	assert.equal(checkVariable('{birthday(Ada,4,18,1994,abc)}'), 'NaN');
 });
 
 test('todayDate replaces no-argument placeholder', () => {
