@@ -68,6 +68,13 @@ router.post('/api/send', async (req, res) => {
 			}
 		} else if (type === 'text') {
 			const msg = checkVariable(data);
+			if (!String(msg).trim()) {
+				return res.status(400).json({
+					error: 'Message resolved to empty text',
+					details:
+						'Template output is empty (for example, birthday message outside the configured days-ahead window).',
+				});
+			}
 			const result = await sendToVestaboard(msg, 'text');
 			if (!result?.ok) {
 				const { status, error } = mapVestaboardError(result);

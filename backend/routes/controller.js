@@ -12,13 +12,51 @@ let runtimeData = null;
 let intervalId = null;
 let lastMsg = null;
 
+const TRUE_VALUES = new Set(['true', '1', 'yes', 'y', 'yearly', 'repeat']);
+const FALSE_VALUES = new Set(['false', '0', 'no', 'n']);
+
+function parseBooleanFlag(value) {
+	if (value == null || value === '') return null;
+	const normalized = String(value).trim().toLowerCase();
+	if (TRUE_VALUES.has(normalized)) return true;
+	if (FALSE_VALUES.has(normalized)) return false;
+	return null;
+}
+
+function removeOuterQuotes(value) {
+	if (typeof value !== 'string') return '';
+	const trimmed = value.trim();
+	if (
+		(trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+		(trimmed.startsWith("'") && trimmed.endsWith("'"))
+	) {
+		return trimmed.slice(1, -1).trim();
+	}
+	return trimmed;
+}
+
+function buildStrictDate(month, day, year) {
+	return moment(`${year}-${month}-${day}`, 'YYYY-M-D', true).startOf('day');
+}
+
+function getNextYearlyOccurrence(month, day, today) {
+	const startYear = today.year();
+	for (let year = startYear; year <= startYear + 8; year++) {
+		const candidate = buildStrictDate(month, day, year);
+		if (!candidate.isValid()) continue;
+		if (candidate.isBefore(today)) continue;
+		return candidate;
+	}
+	return null;
+}
+
 const functionCalls = {
 	tillDate: {
 		name: 'tillDate',
 		description:
 			'Returns the difference in days between today and the given date.',
-		callBack: arr => {
-			const [monthRaw, dayRaw, yearRaw] = arr;
+		callBack: (arr, context = {}) => {
+			const [monthRaw, dayRaw, yearRaw, repeatRaw] = arr;
 			const month = Number(monthRaw);
 			const day = Number(dayRaw);
 			const year = Number(yearRaw);
@@ -28,11 +66,7 @@ const functionCalls = {
 				return NaN;
 			}
 
-			const targetDate = moment(
-				`${year}-${month}-${day}`,
-				'YYYY-M-D',
-				true
-			).startOf('day');
+			const targetDate = buildStrictDate(month, day, year);
 
 			if (!targetDate.isValid()) {
 				logWarn('Invalid tillDate date', { args: arr });
@@ -40,7 +74,65 @@ const functionCalls = {
 			}
 
 			const today = moment().startOf('day');
+			const repeatFlag = parseBooleanFlag(repeatRaw);
+			const isYearly =
+				repeatFlag != null
+					? repeatFlag
+					: context?.repeatEveryYear === true;
+
+			if (isYearly) {
+				const nextOccurrence = getNextYearlyOccurrence(month, day, today);
+				if (!nextOccurrence) {
+					logWarn('Invalid yearly tillDate date', { args: arr });
+					return NaN;
+				}
+				return nextOccurrence.diff(today, 'days');
+			}
+
 			return Math.abs(targetDate.diff(today, 'days'));
+		},
+	},
+	birthday: {
+		name: 'birthday',
+		description:
+			'Returns a birthday countdown in a display window and switches to Happy Birthday on the day.',
+		callBack: arr => {
+			const [nameRaw, monthRaw, dayRaw, yearRaw, daysAheadRaw = '30'] = arr;
+			const month = Number(monthRaw);
+			const day = Number(dayRaw);
+			const year = Number(yearRaw);
+			const daysAhead = Number(daysAheadRaw);
+
+			if (![month, day, year, daysAhead].every(Number.isFinite) || daysAhead < 0) {
+				logWarn('Invalid birthday arguments', { args: arr });
+				return NaN;
+			}
+
+			const birthDate = buildStrictDate(month, day, year);
+			if (!birthDate.isValid()) {
+				logWarn('Invalid birthday date', { args: arr });
+				return NaN;
+			}
+
+			const today = moment().startOf('day');
+			const nextBirthday = getNextYearlyOccurrence(month, day, today);
+			if (!nextBirthday) {
+				logWarn('Invalid next birthday occurrence', { args: arr });
+				return NaN;
+			}
+
+			const safeName = removeOuterQuotes(nameRaw);
+			const daysUntil = nextBirthday.diff(today, 'days');
+			if (daysUntil === 0) {
+				return safeName ? `Happy Birthday ${safeName}!` : 'Happy Birthday!';
+			}
+			if (daysUntil > daysAhead) {
+				return '';
+			}
+
+			const dayLabel = daysUntil === 1 ? 'day' : 'days';
+			const prefix = safeName ? `${safeName}'s birthday` : 'Birthday';
+			return `${prefix} is in ${daysUntil} ${dayLabel}`;
 		},
 	},
 	todayDate: {
@@ -88,7 +180,7 @@ function loadConfig() {
 	}
 }
 
-function checkVariable(string) {
+function checkVariable(string, context = {}) {
 	const match = string.match(/\{(.+?)\}/);
 	if (!match) return string;
 
@@ -103,7 +195,7 @@ function checkVariable(string) {
 			: rawParams.split(',').map(param => param.trim());
 
 	if (functionCalls[functionName]) {
-		const result = functionCalls[functionName].callBack(params);
+		const result = functionCalls[functionName].callBack(params, context);
 		logInfo('Template variable replaced', {
 			placeholder,
 			result,
@@ -252,7 +344,16 @@ async function processMessages() {
 		if (messageData?.type === 'grid') {
 			await sendToVestaboard(messageData.data, 'grid');
 		} else if (messageData?.type === 'text') {
-			const msg = checkVariable(messageData.data);
+			const msg = checkVariable(messageData.data, {
+				repeatEveryYear: messageData?.eventData?.repeatEveryYear === true,
+			});
+			if (!String(msg).trim()) {
+				logInfo('Skipping empty rendered text message', {
+					id: messageData.id,
+				});
+				idx = (idx + 1) % len;
+				continue;
+			}
 			await sendToVestaboard(msg, 'text');
 		}
 

@@ -15,6 +15,21 @@ const {
 const originalFetch = global.fetch;
 const originalWriteFileSync = fs.writeFileSync;
 
+function getNextOccurrence(month, day, today = moment().startOf('day')) {
+	const startYear = today.year();
+	for (let year = startYear; year <= startYear + 8; year++) {
+		const candidate = moment(
+			`${year}-${month}-${day}`,
+			'YYYY-M-D',
+			true
+		).startOf('day');
+		if (!candidate.isValid()) continue;
+		if (candidate.isBefore(today)) continue;
+		return candidate;
+	}
+	return null;
+}
+
 test.afterEach(() => {
 	global.fetch = originalFetch;
 	fs.writeFileSync = originalWriteFileSync;
@@ -37,6 +52,59 @@ test('tillDate counts absolute days for a past date', () => {
 	const expected = `Event was ${Math.abs(target.diff(today, 'days'))} days ago`;
 
 	assert.equal(checkVariable(input), expected);
+});
+
+test('tillDate uses yearly occurrence for repeatEveryYear messages', () => {
+	const today = moment().startOf('day');
+	const target = today.clone().subtract(40, 'days');
+	const month = Number(target.format('M'));
+	const day = Number(target.format('D'));
+	const nextOccurrence = getNextOccurrence(month, day, today);
+	const input = `Event in {tillDate(${month},${day},1994)} days`;
+	const expected = `Event in ${nextOccurrence.diff(today, 'days')} days`;
+
+	assert.equal(checkVariable(input, { repeatEveryYear: true }), expected);
+});
+
+test('tillDate supports explicit yearly flag as fourth parameter', () => {
+	const today = moment().startOf('day');
+	const target = today.clone().subtract(1, 'day');
+	const month = Number(target.format('M'));
+	const day = Number(target.format('D'));
+	const nextOccurrence = getNextOccurrence(month, day, today);
+	const input = `Event in {tillDate(${month},${day},1994,true)} days`;
+	const expected = `Event in ${nextOccurrence.diff(today, 'days')} days`;
+
+	assert.equal(checkVariable(input), expected);
+});
+
+test('birthday returns Happy Birthday on the exact birthday', () => {
+	const today = moment().startOf('day');
+	const month = today.format('M');
+	const day = today.format('D');
+	const input = `{birthday(Ada,${month},${day},1994,30)}`;
+
+	assert.equal(checkVariable(input), 'Happy Birthday Ada!');
+});
+
+test('birthday returns countdown when inside days-ahead window', () => {
+	const today = moment().startOf('day');
+	const target = today.clone().add(5, 'days');
+	const month = target.format('M');
+	const day = target.format('D');
+	const input = `{birthday("Ada",${month},${day},1994,30)}`;
+
+	assert.equal(checkVariable(input), "Ada's birthday is in 5 days");
+});
+
+test('birthday returns empty string when outside days-ahead window', () => {
+	const today = moment().startOf('day');
+	const target = today.clone().add(45, 'days');
+	const month = target.format('M');
+	const day = target.format('D');
+	const input = `{birthday(Ada,${month},${day},1994,30)}`;
+
+	assert.equal(checkVariable(input), '');
 });
 
 test('todayDate replaces no-argument placeholder', () => {
