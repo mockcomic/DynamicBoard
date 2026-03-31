@@ -18,11 +18,9 @@ const originalWriteFileSync = fs.writeFileSync;
 function getNextOccurrence(month, day, today = moment.utc().startOf('day')) {
 	const startYear = today.year();
 	for (let year = startYear; year <= startYear + 8; year++) {
-		const candidate = moment.utc(
-			`${year}-${month}-${day}`,
-			'YYYY-M-D',
-			true
-		).startOf('day');
+		const candidate = moment
+			.utc(`${year}-${month}-${day}`, 'YYYY-M-D', true)
+			.startOf('day');
 		if (!candidate.isValid()) continue;
 		if (candidate.isBefore(today)) continue;
 		return candidate;
@@ -220,7 +218,7 @@ test('sendToVestaboard posts text payload when api key exists', async () => {
 	assert.equal(calls[0].options.body, JSON.stringify({ text: 'hello world' }));
 	assert.equal(
 		calls[0].options.headers['X-Vestaboard-Read-Write-Key'],
-		'key-123'
+		'key-123',
 	);
 });
 
@@ -276,7 +274,11 @@ test('sendToVestaboard returns network_error and persists config on fetch failur
 	__setConfigForTests({ apiWriteKey: 'key-123', isValidKey: true });
 
 	const result = await sendToVestaboard('hello world', 'text');
-	assert.deepEqual(result, { ok: false, status: 0, statusText: 'network_error' });
+	assert.deepEqual(result, {
+		ok: false,
+		status: 0,
+		statusText: 'network_error',
+	});
 	assert.equal(writes.length, 1);
 	assert.equal(writes[0].path, './config.json');
 });

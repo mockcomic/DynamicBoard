@@ -36,9 +36,7 @@ function removeOuterQuotes(value) {
 }
 
 function buildStrictDate(month, day, year) {
-	return moment
-		.utc(`${year}-${month}-${day}`, 'YYYY-M-D', true)
-		.startOf('day');
+	return moment.utc(`${year}-${month}-${day}`, 'YYYY-M-D', true).startOf('day');
 }
 
 function getNextYearlyOccurrence(month, day, today) {
@@ -78,9 +76,7 @@ const functionCalls = {
 			const today = moment.utc().startOf('day');
 			const repeatFlag = parseBooleanFlag(repeatRaw);
 			const isYearly =
-				repeatFlag != null
-					? repeatFlag
-					: context?.repeatEveryYear === true;
+				repeatFlag != null ? repeatFlag : context?.repeatEveryYear === true;
 
 			if (isYearly) {
 				const nextOccurrence = getNextYearlyOccurrence(month, day, today);
@@ -105,7 +101,10 @@ const functionCalls = {
 			const year = Number(yearRaw);
 			const daysAhead = Number(daysAheadRaw);
 
-			if (![month, day, year, daysAhead].every(Number.isFinite) || daysAhead < 0) {
+			if (
+				![month, day, year, daysAhead].every(Number.isFinite) ||
+				daysAhead < 0
+			) {
 				logWarn('Invalid birthday arguments', { args: arr });
 				return NaN;
 			}
@@ -141,7 +140,12 @@ const functionCalls = {
 		name: 'todayDate',
 		description: 'Returns todays date.',
 		callBack: () => {
-			return new Date().toISOString().slice(0, 10).split('-').reverse().join('/');
+			return new Date()
+				.toISOString()
+				.slice(0, 10)
+				.split('-')
+				.reverse()
+				.join('/');
 		},
 	},
 	todayIso: {
@@ -192,9 +196,7 @@ function checkVariable(string, context = {}) {
 
 	const [, functionName, rawParams = ''] = commandMatch;
 	const params =
-		rawParams === ''
-			? []
-			: rawParams.split(',').map(param => param.trim());
+		rawParams === '' ? [] : rawParams.split(',').map(param => param.trim());
 
 	if (functionCalls[functionName]) {
 		const result = functionCalls[functionName].callBack(params, context);
@@ -322,7 +324,9 @@ async function processMessages() {
 		return;
 	}
 
-	const len = Array.isArray(runtimeData?.messages) ? runtimeData.messages.length : 0;
+	const len = Array.isArray(runtimeData?.messages)
+		? runtimeData.messages.length
+		: 0;
 	if (len === 0) {
 		logInfo('No messages to process');
 		isLooping = false;
