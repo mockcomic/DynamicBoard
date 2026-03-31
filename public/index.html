@@ -21,7 +21,7 @@
 			rel="stylesheet"
 			href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
 		/>
-		<link rel="stylesheet" href="./css/styles.css?v=20260204" />
+		<link rel="stylesheet" href="./css/styles.css?v=20260330b" />
 		<link rel="manifest" href="/manifest.json" />
 	</head>
 
@@ -105,12 +105,22 @@
 								></textarea>
 							</div>
 						</div>
-						<div class="has-text-centered mt-4">
+						<div
+							class="buttons is-centered is-flex-wrap-wrap mt-4 text-action-buttons"
+						>
 							<button
 								class="button is-primary is-rounded has-text-weight-semibold"
 								onclick="submitData('text')"
 							>
 								Submit
+							</button>
+							<button
+								class="button is-warning is-light is-rounded has-text-weight-semibold"
+								type="button"
+								id="schedule-btn"
+								onclick="openScheduleModal()"
+							>
+								Schedule
 							</button>
 							<button
 								class="button is-link is-light is-rounded has-text-weight-semibold"
@@ -121,47 +131,12 @@
 								Add Birthday
 							</button>
 						</div>
-					</div>
-
-					<!-- Date Range Controls -->
-					<div class="field has-text-centered mt-5">
-						<label class="title is-4">Date Range</label>
-						<div class="field mt-2">
-							<label class="checkbox">
-								<input
-									type="checkbox"
-									id="toggleDateRange"
-									onclick="toggleDateRangeVisibility()"
-								/>
-								Show Date Range
-							</label>
-						</div>
-
-						<div id="dateRangeText" class="mt-3" style="display: none">
-							<div class="box has-background-grey-lighter has-text-centered">
-								<input
-									type="datetime-local"
-									id="startDateText"
-									class="input mb-2"
-								/>
-								<span class="mx-2">to</span>
-								<input
-									type="datetime-local"
-									id="endDateText"
-									class="input mb-4"
-								/>
-								<div class="mt-2">
-									<label class="checkbox">
-										<input
-											type="checkbox"
-											id="repeatEveryYear"
-											onclick="toggleRepeatEveryYear()"
-										/>
-										Repeat every year?
-									</label>
-								</div>
-							</div>
-						</div>
+						<p
+							class="help has-text-centered mt-2 schedule-summary"
+							id="schedule-summary"
+						>
+							No schedule set for next message.
+						</p>
 					</div>
 				</div>
 
@@ -395,6 +370,104 @@
 			</div>
 		</div>
 
+		<!-- Schedule Modal -->
+		<div class="modal" id="schedule-modal">
+			<div class="modal-background" id="schedule-modal-bg"></div>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Schedule Message</p>
+					<button
+						class="delete"
+						id="schedule-close-head-btn"
+						aria-label="close"
+					></button>
+				</header>
+				<section class="modal-card-body">
+					<div class="field">
+						<label class="checkbox">
+							<input type="checkbox" id="toggleDateRange" />
+							Enable schedule for next message
+						</label>
+					</div>
+
+					<div class="field mt-3">
+						<label class="label">Quick Presets</label>
+						<div class="buttons is-flex-wrap-wrap schedule-presets">
+							<button
+								class="button is-small is-light"
+								type="button"
+								id="schedule-preset-24h"
+							>
+								Next 24 Hours
+							</button>
+							<button
+								class="button is-small is-light"
+								type="button"
+								id="schedule-preset-7d"
+							>
+								Next 7 Days
+							</button>
+							<button
+								class="button is-small is-light"
+								type="button"
+								id="schedule-preset-weekend"
+							>
+								This Weekend
+							</button>
+						</div>
+					</div>
+
+					<div class="field mt-3">
+						<label class="checkbox">
+							<input type="checkbox" id="schedule-start-now" />
+							Set start to now
+						</label>
+					</div>
+
+					<div class="field mt-3">
+						<label class="label" for="startDateText">Start</label>
+						<div class="control">
+							<input type="datetime-local" id="startDateText" class="input" />
+						</div>
+					</div>
+
+					<div class="field">
+						<label class="label" for="endDateText">End</label>
+						<div class="control">
+							<input type="datetime-local" id="endDateText" class="input" />
+						</div>
+					</div>
+
+					<div class="field mt-3">
+						<label class="checkbox">
+							<input type="checkbox" id="repeatEveryYear" />
+							Repeat every year
+						</label>
+					</div>
+
+					<div class="field mt-3">
+						<label class="checkbox">
+							<input type="checkbox" id="schedule-all-day" />
+							All day window (00:00 to 23:59)
+						</label>
+					</div>
+
+					<p class="help">
+						Tip: Use Clear to remove scheduling and send as a normal message.
+					</p>
+				</section>
+				<footer class="modal-card-foot schedule-modal-actions">
+					<button class="button is-primary" id="schedule-apply-btn">
+						Apply Schedule
+					</button>
+					<button class="button is-warning is-light" id="schedule-clear-btn">
+						Clear
+					</button>
+					<button class="button" id="schedule-cancel-btn">Close</button>
+				</footer>
+			</div>
+		</div>
+
 		<!-- Messages Section -->
 		<section class="section">
 			<div class="container">
@@ -416,10 +489,10 @@
 				>
 					Reset API Key
 				</button>
-				<p class="is-size-7 has-text-grey-light mt-2">Build 20260204</p>
+				<p class="is-size-7 has-text-grey-light mt-2">Build 20260330b</p>
 			</div>
 		</footer>
 
-		<script src="./js/app.js?v=20260204" defer></script>
+		<script src="./js/app.js?v=20260330b" defer></script>
 	</body>
 </html>

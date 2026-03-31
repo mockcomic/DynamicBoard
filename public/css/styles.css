@@ -35,3 +35,31 @@ body {
 	justify-content: flex-end;
 	flex-wrap: wrap;
 }
+
+.schedule-modal-actions {
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}
+
+.text-action-buttons .button {
+	min-width: 140px;
+}
+
+.schedule-summary {
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 8px;
+	padding: 8px 10px;
+	color: #f0f0f0;
+}
+
+.schedule-presets .button {
+	min-width: 120px;
+}
+
+@media (max-width: 768px) {
+	.text-action-buttons .button,
+	.schedule-presets .button {
+		width: 100%;
+	}
+}

@@ -1,5 +1,5 @@
-const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v4';
-const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v4';
+const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v6';
+const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v6';
 const APP_SHELL_FILES = [
 	'/',
 	'/index.html',
