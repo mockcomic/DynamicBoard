@@ -1,5 +1,5 @@
-const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v3';
-const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v3';
+const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v4';
+const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v4';
 const APP_SHELL_FILES = [
 	'/',
 	'/index.html',
@@ -17,7 +17,7 @@ const APP_SHELL_FILES = [
 
 self.addEventListener('install', event => {
 	event.waitUntil(
-		caches.open(STATIC_CACHE_NAME).then(cache => cache.addAll(APP_SHELL_FILES))
+		caches.open(STATIC_CACHE_NAME).then(cache => cache.addAll(APP_SHELL_FILES)),
 	);
 	self.skipWaiting();
 });
@@ -28,9 +28,9 @@ self.addEventListener('activate', event => {
 			return Promise.all(
 				keys
 					.filter(key => key !== STATIC_CACHE_NAME && key !== DATA_CACHE_NAME)
-					.map(key => caches.delete(key))
+					.map(key => caches.delete(key)),
 			);
-		})
+		}),
 	);
 	self.clients.claim();
 });
@@ -52,11 +52,13 @@ async function networkFirstApi(request) {
 		const cachedResponse = await cache.match(request);
 		if (cachedResponse) return cachedResponse;
 		return new Response(
-			JSON.stringify({ error: 'Offline and no cached API response available.' }),
+			JSON.stringify({
+				error: 'Offline and no cached API response available.',
+			}),
 			{
 				status: 503,
 				headers: { 'Content-Type': 'application/json' },
-			}
+			},
 		);
 	}
 }
@@ -115,7 +117,7 @@ self.addEventListener('fetch', event => {
 
 	if (
 		['style', 'script', 'worker', 'image', 'font', 'manifest'].includes(
-			request.destination
+			request.destination,
 		)
 	) {
 		event.respondWith(cacheFirstAsset(request));

@@ -6,10 +6,14 @@ function log(level, message, meta) {
 	const output = meta instanceof Error ? meta.message : meta;
 	switch (level) {
 		case 'error':
-			output !== undefined ? console.error(prefix, output) : console.error(prefix);
+			output !== undefined
+				? console.error(prefix, output)
+				: console.error(prefix);
 			break;
 		case 'warn':
-			output !== undefined ? console.warn(prefix, output) : console.warn(prefix);
+			output !== undefined
+				? console.warn(prefix, output)
+				: console.warn(prefix);
 			break;
 		default:
 			output !== undefined ? console.log(prefix, output) : console.log(prefix);
@@ -76,7 +80,10 @@ function registerServiceWorker() {
 							installingWorker.state === 'installed' &&
 							navigator.serviceWorker.controller
 						) {
-							showToast('New app version available. Refresh to update.', 'info');
+							showToast(
+								'New app version available. Refresh to update.',
+								'info',
+							);
 						}
 					});
 				});
@@ -135,7 +142,10 @@ let codex = {};
 		codex = await response.json();
 	} catch (err) {
 		log('error', 'Failed to load CharCode.json', err);
-		showToast(`Failed to load character data: ${err?.message || err}`, 'danger');
+		showToast(
+			`Failed to load character data: ${err?.message || err}`,
+			'danger',
+		);
 	}
 })();
 
@@ -187,7 +197,7 @@ function loadData(array) {
 		else
 			showToast(
 				`Failed to update time interval: ${result.errorMessage}`,
-				'danger'
+				'danger',
 			);
 	};
 
@@ -346,18 +356,15 @@ async function submitData(type) {
 		//! Check if vaild date range
 		const startVal = startDate ? new Date(startDate) : null;
 		const endVal = endDate ? new Date(endDate) : null;
-		const invalidOrder =
-			startVal && endVal ? endVal < startVal : false;
+		const invalidOrder = startVal && endVal ? endVal < startVal : false;
 
 		if (
 			eventData.isEvent &&
-			(!startVal ||
-				!endVal ||
-				(!eventData.repeatEveryYear && invalidOrder))
+			(!startVal || !endVal || (!eventData.repeatEveryYear && invalidOrder))
 		) {
 			log('warn', 'Invalid date range');
 			showCustomAlert(
-				'Invliad date range. Please enter a vaild date or uncheck "Show Date Range".'
+				'Invliad date range. Please enter a vaild date or uncheck "Show Date Range".',
 			);
 			return;
 		}
@@ -382,7 +389,7 @@ async function submitData(type) {
 			// right before navigation).
 			sessionStorage.setItem(
 				'pendingToast',
-				JSON.stringify({ message: 'Saved message', type: 'success' })
+				JSON.stringify({ message: 'Saved message', type: 'success' }),
 			);
 			window.location.reload();
 		} else {
@@ -416,7 +423,7 @@ async function deleteEntry(id) {
 		const filteredData = (configData.messages = configData.messages.filter(
 			message => {
 				return message.id != id;
-			}
+			},
 		));
 		configData.messages = filteredData;
 		const result = await pushData(configData);
@@ -480,11 +487,11 @@ function createCard(messageData) {
 		dateRangeText.innerHTML = `
 			<span class="tag is-warning is-light has-text-weight-semibold" style="margin-right: 5px;">Date Range</span>
 			<span class="has-text-weight-semibold">${formatDate(
-				messageData.eventData.startDate
+				messageData.eventData.startDate,
 			)}</span>
 			<span class="has-text-grey-dark">-</span>
 			<span class="has-text-weight-semibold">${formatDate(
-				messageData.eventData.endDate
+				messageData.eventData.endDate,
 			)}</span>
 		`;
 
@@ -602,6 +609,98 @@ function closeEventModal() {
 	document.getElementById('legend-modal').classList.remove('is-active');
 }
 
+function openBirthdayModal() {
+	const modal = document.getElementById('birthday-modal');
+	if (!modal) return;
+	modal.classList.add('is-active');
+
+	const nameInput = document.getElementById('birthday-name');
+	if (nameInput) nameInput.focus();
+}
+
+function closeBirthdayModal() {
+	const modal = document.getElementById('birthday-modal');
+	if (!modal) return;
+	modal.classList.remove('is-active');
+}
+
+window.openBirthdayModal = openBirthdayModal;
+window.closeBirthdayModal = closeBirthdayModal;
+
+function clearBirthdayForm() {
+	const ids = [
+		'birthday-name',
+		'birthday-month',
+		'birthday-day',
+		'birthday-year',
+	];
+
+	ids.forEach(id => {
+		const input = document.getElementById(id);
+		if (input) input.value = '';
+	});
+
+	const daysAheadInput = document.getElementById('birthday-days-ahead');
+	if (daysAheadInput) daysAheadInput.value = '30';
+}
+
+async function addBirthdayMessage() {
+	if (!configData || !Array.isArray(configData.messages)) {
+		showToast('Still loading... try again in a second', 'warning');
+		return;
+	}
+
+	const name = (document.getElementById('birthday-name')?.value || '').trim();
+	const month = Number(document.getElementById('birthday-month')?.value);
+	const day = Number(document.getElementById('birthday-day')?.value);
+	const year = Number(document.getElementById('birthday-year')?.value);
+	const daysAheadRaw =
+		document.getElementById('birthday-days-ahead')?.value || '30';
+	const daysAhead = Number(daysAheadRaw);
+
+	if (!name) {
+		showToast('Please enter a name', 'warning');
+		return;
+	}
+
+	if (
+		![month, day, year, daysAhead].every(Number.isFinite) ||
+		month < 1 ||
+		month > 12 ||
+		day < 1 ||
+		day > 31 ||
+		year < 1900 ||
+		daysAhead < 0
+	) {
+		showToast('Please enter valid birthday values', 'warning');
+		return;
+	}
+
+	const escapedName = name.replace(/"/g, '\\"');
+	const birthdayTemplate = `{birthday("${escapedName}",${month},${day},${year},${daysAhead})}`;
+
+	configData.messages.push({
+		id: Date.now() + Math.floor(Math.random() * 1000),
+		type: 'text',
+		msg: birthdayTemplate,
+		data: birthdayTemplate,
+		eventData: { ...eventDataDefualt },
+	});
+
+	const result = await pushData(configData);
+	if (result.ok) {
+		clearBirthdayForm();
+		closeBirthdayModal();
+		sessionStorage.setItem(
+			'pendingToast',
+			JSON.stringify({ message: 'Birthday message added', type: 'success' }),
+		);
+		window.location.reload();
+	} else {
+		showToast(`Save failed: ${result.errorMessage}`, 'danger');
+	}
+}
+
 function toggleDateRangeVisibility() {
 	eventData.isEvent = document.getElementById('toggleDateRange').checked;
 	document.getElementById('dateRangeText').style.display = eventData.isEvent
@@ -617,6 +716,40 @@ function toggleRepeatEveryYear() {
 document.addEventListener('DOMContentLoaded', () => {
 	toggleDateRangeVisibility();
 	consumePendingToast();
+
+	const addBirthdayBtn = document.getElementById('add-birthday-btn');
+	if (addBirthdayBtn) {
+		addBirthdayBtn.addEventListener('click', openBirthdayModal);
+	}
+
+	const birthdayModalBg = document.getElementById('birthday-modal-bg');
+	if (birthdayModalBg) {
+		birthdayModalBg.addEventListener('click', closeBirthdayModal);
+	}
+
+	const birthdayCloseHeadBtn = document.getElementById(
+		'birthday-close-head-btn',
+	);
+	if (birthdayCloseHeadBtn) {
+		birthdayCloseHeadBtn.addEventListener('click', closeBirthdayModal);
+	}
+
+	const birthdayCancelBtn = document.getElementById('birthday-cancel-btn');
+	if (birthdayCancelBtn) {
+		birthdayCancelBtn.addEventListener('click', closeBirthdayModal);
+	}
+
+	const birthdaySaveBtn = document.getElementById('birthday-save-btn');
+	if (birthdaySaveBtn) {
+		birthdaySaveBtn.addEventListener('click', addBirthdayMessage);
+	}
+});
+
+document.addEventListener('click', evt => {
+	const addBirthdayBtn = evt.target.closest('#add-birthday-btn');
+	if (!addBirthdayBtn) return;
+	evt.preventDefault();
+	openBirthdayModal();
 });
 
 // #endregion

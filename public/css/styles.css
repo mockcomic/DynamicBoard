@@ -30,3 +30,8 @@ body {
 
 .card {
 }
+
+.birthday-modal-actions {
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}

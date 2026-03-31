@@ -12,7 +12,10 @@
 		<meta name="theme-color" content="#000000" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta
+			name="apple-mobile-web-app-status-bar-style"
+			content="black-translucent"
+		/>
 		<link rel="apple-touch-icon" href="/icons/apple-icon-180.png" />
 		<link
 			rel="stylesheet"
@@ -108,6 +111,14 @@
 								onclick="submitData('text')"
 							>
 								Submit
+							</button>
+							<button
+								class="button is-link is-light is-rounded has-text-weight-semibold"
+								type="button"
+								id="add-birthday-btn"
+								onclick="openBirthdayModal()"
+							>
+								Add Birthday
 							</button>
 						</div>
 					</div>
@@ -265,6 +276,91 @@
 				id="close-event-btn"
 				aria-label="close"
 			></button>
+		</div>
+
+		<!-- Birthday Modal -->
+		<div class="modal" id="birthday-modal">
+			<div class="modal-background" id="birthday-modal-bg"></div>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Add Birthday Message</p>
+					<button
+						class="delete"
+						id="birthday-close-head-btn"
+						aria-label="close"
+					></button>
+				</header>
+				<section class="modal-card-body">
+					<div class="field">
+						<label class="label" for="birthday-name">Name</label>
+						<div class="control">
+							<input
+								class="input"
+								type="text"
+								id="birthday-name"
+								placeholder="Ada"
+							/>
+						</div>
+					</div>
+
+					<div class="columns is-mobile">
+						<div class="column">
+							<label class="label" for="birthday-month">Month</label>
+							<input
+								class="input"
+								type="number"
+								id="birthday-month"
+								min="1"
+								max="12"
+								placeholder="4"
+							/>
+						</div>
+						<div class="column">
+							<label class="label" for="birthday-day">Day</label>
+							<input
+								class="input"
+								type="number"
+								id="birthday-day"
+								min="1"
+								max="31"
+								placeholder="18"
+							/>
+						</div>
+						<div class="column">
+							<label class="label" for="birthday-year">Year</label>
+							<input
+								class="input"
+								type="number"
+								id="birthday-year"
+								min="1900"
+								max="2999"
+								placeholder="1994"
+							/>
+						</div>
+					</div>
+
+					<div class="field">
+						<label class="label" for="birthday-days-ahead">Days Ahead</label>
+						<div class="control">
+							<input
+								class="input"
+								type="number"
+								id="birthday-days-ahead"
+								min="0"
+								placeholder="30"
+								value="30"
+							/>
+						</div>
+						<p class="help">Builds: {birthday(name,mm,dd,yyyy,daysAhead)}</p>
+					</div>
+				</section>
+				<footer class="modal-card-foot birthday-modal-actions">
+					<button class="button is-primary" id="birthday-save-btn">
+						Add Birthday Message
+					</button>
+					<button class="button" id="birthday-cancel-btn">Cancel</button>
+				</footer>
+			</div>
 		</div>
 
 		<!-- Messages Section -->
