@@ -53,10 +53,11 @@ Available:
   Returns the number of days until (or since) the date.
   For yearly repeating events, it now automatically counts to the next yearly occurrence.
   You can also force yearly mode with `tillDate(mm,dd,yyyy,true)`.
-- `birthday(name,mm,dd,yyyy,daysAhead)`  
+- `birthday(name,mm,dd,yyyy,daysAhead,daysToText,dayOfText)`  
   Returns `Happy Birthday <name>!` on the birthday, otherwise a countdown while
   the birthday is within `daysAhead` days. Outside that window it returns an empty
-  string.
+  string. `daysToText` and `dayOfText` are optional custom templates that support
+  tokens: `{name}`, `{days}`, `{dayLabel}`.
 - `todayDate()`  
   Returns today’s date in `mm,dd,yyyy` format.
 - `todayIso()`  

@@ -35,6 +35,104 @@ function removeOuterQuotes(value) {
 	return trimmed;
 }
 
+function splitFunctionParams(rawParams) {
+	if (rawParams == null || rawParams === '') return [];
+
+	const result = [];
+	let current = '';
+	let quoteChar = null;
+
+	for (let i = 0; i < rawParams.length; i++) {
+		const ch = rawParams[i];
+		const prev = i > 0 ? rawParams[i - 1] : '';
+
+		if ((ch === '"' || ch === "'") && prev !== '\\') {
+			if (quoteChar === ch) {
+				quoteChar = null;
+			} else if (!quoteChar) {
+				quoteChar = ch;
+			}
+			current += ch;
+			continue;
+		}
+
+		if (ch === ',' && !quoteChar) {
+			result.push(current.trim());
+			current = '';
+			continue;
+		}
+
+		current += ch;
+	}
+
+	result.push(current.trim());
+	return result;
+}
+
+function renderBirthdayTemplate(template, safeName, daysUntil, dayLabel) {
+	return template
+		.replaceAll('{name}', safeName)
+		.replaceAll('{days}', String(daysUntil))
+		.replaceAll('{dayLabel}', dayLabel);
+}
+
+function findTemplatePlaceholder(input) {
+	if (typeof input !== 'string' || input.length === 0) return null;
+
+	for (let i = 0; i < input.length; i++) {
+		if (input[i] !== '{') continue;
+
+		let j = i + 1;
+		while (j < input.length && /[a-zA-Z0-9_]/.test(input[j])) j++;
+		if (j === i + 1) continue;
+
+		if (input[j] === '}') {
+			const placeholder = input.slice(i, j + 1);
+			const command = input.slice(i + 1, j);
+			return { placeholder, command };
+		}
+
+		if (input[j] !== '(') continue;
+
+		let k = j + 1;
+		let depth = 1;
+		let quoteChar = null;
+
+		while (k < input.length) {
+			const ch = input[k];
+			const prev = k > 0 ? input[k - 1] : '';
+
+			if ((ch === '"' || ch === "'") && prev !== '\\') {
+				if (quoteChar === ch) {
+					quoteChar = null;
+				} else if (!quoteChar) {
+					quoteChar = ch;
+				}
+				k++;
+				continue;
+			}
+
+			if (!quoteChar) {
+				if (ch === '(') depth++;
+				if (ch === ')') depth--;
+
+				if (depth === 0) {
+					if (input[k + 1] === '}') {
+						const placeholder = input.slice(i, k + 2);
+						const command = input.slice(i + 1, k + 1);
+						return { placeholder, command };
+					}
+					break;
+				}
+			}
+
+			k++;
+		}
+	}
+
+	return null;
+}
+
 function buildStrictDate(month, day, year) {
 	return moment.utc(`${year}-${month}-${day}`, 'YYYY-M-D', true).startOf('day');
 }
@@ -93,9 +191,17 @@ const functionCalls = {
 	birthday: {
 		name: 'birthday',
 		description:
-			'Returns a birthday countdown in a display window and switches to Happy Birthday on the day.',
+			'Returns a birthday countdown and switches to a birthday message on the day. Supports optional custom text overrides.',
 		callBack: arr => {
-			const [nameRaw, monthRaw, dayRaw, yearRaw, daysAheadRaw = '30'] = arr;
+			const [
+				nameRaw,
+				monthRaw,
+				dayRaw,
+				yearRaw,
+				daysAheadRaw = '30',
+				daysToTextRaw = '',
+				dayOfTextRaw = '',
+			] = arr;
 			const month = Number(monthRaw);
 			const day = Number(dayRaw);
 			const year = Number(yearRaw);
@@ -123,15 +229,35 @@ const functionCalls = {
 			}
 
 			const safeName = removeOuterQuotes(nameRaw);
+			const daysToTextTemplate = removeOuterQuotes(daysToTextRaw);
+			const dayOfTextTemplate = removeOuterQuotes(dayOfTextRaw);
 			const daysUntil = nextBirthday.diff(today, 'days');
+			const dayLabel = daysUntil === 1 ? 'day' : 'days';
+
 			if (daysUntil === 0) {
+				if (dayOfTextTemplate) {
+					return renderBirthdayTemplate(
+						dayOfTextTemplate,
+						safeName,
+						daysUntil,
+						dayLabel,
+					);
+				}
 				return safeName ? `Happy Birthday ${safeName}!` : 'Happy Birthday!';
 			}
 			if (daysUntil > daysAhead) {
 				return '';
 			}
 
-			const dayLabel = daysUntil === 1 ? 'day' : 'days';
+			if (daysToTextTemplate) {
+				return renderBirthdayTemplate(
+					daysToTextTemplate,
+					safeName,
+					daysUntil,
+					dayLabel,
+				);
+			}
+
 			const prefix = safeName ? `${safeName}'s birthday` : 'Birthday';
 			return `${prefix} is in ${daysUntil} ${dayLabel}`;
 		},
@@ -187,16 +313,15 @@ function loadConfig() {
 }
 
 function checkVariable(string, context = {}) {
-	const match = string.match(/\{(.+?)\}/);
+	const match = findTemplatePlaceholder(string);
 	if (!match) return string;
 
-	const [placeholder, command] = match;
+	const { placeholder, command } = match;
 	const commandMatch = command.match(/^([a-zA-Z0-9_]+)(?:\((.*)\))?$/);
 	if (!commandMatch) return string;
 
 	const [, functionName, rawParams = ''] = commandMatch;
-	const params =
-		rawParams === '' ? [] : rawParams.split(',').map(param => param.trim());
+	const params = splitFunctionParams(rawParams);
 
 	if (functionCalls[functionName]) {
 		const result = functionCalls[functionName].callBack(params, context);

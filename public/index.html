@@ -351,7 +351,39 @@
 								value="30"
 							/>
 						</div>
-						<p class="help">Builds: {birthday(name,mm,dd,yyyy,daysAhead)}</p>
+					</div>
+
+					<div class="field">
+						<label class="label" for="birthday-days-to-text"
+							>Days-To Text (optional)</label
+						>
+						<div class="control">
+							<input
+								class="input"
+								type="text"
+								id="birthday-days-to-text"
+								placeholder="{name}'s birthday is in {days} {dayLabel}"
+							/>
+						</div>
+						<p class="help">Supports tokens: {name}, {days}, {dayLabel}</p>
+					</div>
+
+					<div class="field">
+						<label class="label" for="birthday-day-of-text"
+							>Day-Of Text (optional)</label
+						>
+						<div class="control">
+							<input
+								class="input"
+								type="text"
+								id="birthday-day-of-text"
+								placeholder="Happy Birthday {name}!"
+							/>
+						</div>
+						<p class="help">Supports tokens: {name}, {days}, {dayLabel}</p>
+						<p class="help">
+							Builds: {birthday(name,mm,dd,yyyy,daysAhead,daysToText,dayOfText)}
+						</p>
 					</div>
 				</section>
 				<footer class="modal-card-foot birthday-modal-actions">

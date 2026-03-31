@@ -128,6 +128,50 @@ test('birthday invalid daysAhead is replaced with NaN', () => {
 	assert.equal(checkVariable('{birthday(Ada,4,18,1994,abc)}'), 'NaN');
 });
 
+test('birthday supports custom countdown and day-of text overrides', () => {
+	const today = moment.utc().startOf('day');
+	const target = today.clone().add(3, 'days');
+	const month = target.format('M');
+	const day = target.format('D');
+	const input =
+		'{birthday(Ada,' +
+		month +
+		',' +
+		day +
+		',1994,30,"Only {days} {dayLabel} until {name}!","It\'s {name}\'s day!")}';
+
+	assert.equal(checkVariable(input), 'Only 3 days until Ada!');
+});
+
+test('birthday uses custom day-of text override on the birthday', () => {
+	const today = moment.utc().startOf('day');
+	const month = today.format('M');
+	const day = today.format('D');
+	const input =
+		'{birthday(Ada,' +
+		month +
+		',' +
+		day +
+		',1994,30,"","Party time for {name}!")}';
+
+	assert.equal(checkVariable(input), 'Party time for Ada!');
+});
+
+test('function parameter parsing keeps commas inside quoted strings', () => {
+	const today = moment.utc().startOf('day');
+	const target = today.clone().add(2, 'days');
+	const month = target.format('M');
+	const day = target.format('D');
+	const input =
+		'{birthday(Ada,' +
+		month +
+		',' +
+		day +
+		',1994,30,"Heads up, {name}: {days} {dayLabel} left","Happy Birthday, {name}!")}';
+
+	assert.equal(checkVariable(input), 'Heads up, Ada: 2 days left');
+});
+
 test('todayDate replaces no-argument placeholder', () => {
 	const output = checkVariable('Today is {todayDate()}');
 

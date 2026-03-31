@@ -633,6 +633,8 @@ function clearBirthdayForm() {
 		'birthday-month',
 		'birthday-day',
 		'birthday-year',
+		'birthday-days-to-text',
+		'birthday-day-of-text',
 	];
 
 	ids.forEach(id => {
@@ -657,6 +659,12 @@ async function addBirthdayMessage() {
 	const daysAheadRaw =
 		document.getElementById('birthday-days-ahead')?.value || '30';
 	const daysAhead = Number(daysAheadRaw);
+	const daysToText = (
+		document.getElementById('birthday-days-to-text')?.value || ''
+	).trim();
+	const dayOfText = (
+		document.getElementById('birthday-day-of-text')?.value || ''
+	).trim();
 
 	if (!name) {
 		showToast('Please enter a name', 'warning');
@@ -676,8 +684,20 @@ async function addBirthdayMessage() {
 		return;
 	}
 
-	const escapedName = name.replace(/"/g, '\\"');
-	const birthdayTemplate = `{birthday("${escapedName}",${month},${day},${year},${daysAhead})}`;
+	const escapeArg = value =>
+		String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+	const escapedName = escapeArg(name);
+	const escapedDaysToText = escapeArg(daysToText);
+	const escapedDayOfText = escapeArg(dayOfText);
+
+	const args = [`"${escapedName}"`, month, day, year, daysAhead];
+
+	if (daysToText || dayOfText) {
+		args.push(`"${escapedDaysToText}"`);
+		args.push(`"${escapedDayOfText}"`);
+	}
+
+	const birthdayTemplate = `{birthday(${args.join(',')})}`;
 
 	configData.messages.push({
 		id: Date.now() + Math.floor(Math.random() * 1000),
