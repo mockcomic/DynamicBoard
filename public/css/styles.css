@@ -57,9 +57,27 @@ body {
 	min-width: 120px;
 }
 
+.quick-hint {
+	font-size: 0.85rem;
+	color: #505050;
+}
+
+.text-meta {
+	border-top: 1px dashed rgba(0, 0, 0, 0.15);
+	padding-top: 6px;
+}
+
+#text-length {
+	font-weight: 600;
+}
+
 @media (max-width: 768px) {
 	.text-action-buttons .button,
 	.schedule-presets .button {
 		width: 100%;
+	}
+
+	.text-meta {
+		display: block;
 	}
 }

@@ -329,6 +329,13 @@ function displayMessage() {
 	return message;
 }
 
+function updateTextLength() {
+	const textInput = document.getElementById('textData');
+	const textLength = document.getElementById('text-length');
+	if (!textInput || !textLength) return;
+	textLength.textContent = `${textInput.value.length} chars`;
+}
+
 async function submitData(type) {
 	try {
 		if (!configData || !Array.isArray(configData.messages)) {
@@ -918,6 +925,28 @@ async function addBirthdayMessage() {
 document.addEventListener('DOMContentLoaded', () => {
 	updateScheduleSummary();
 	consumePendingToast();
+	updateTextLength();
+
+	const textInput = document.getElementById('textData');
+	if (textInput) {
+		textInput.addEventListener('input', updateTextLength);
+		textInput.addEventListener('keydown', evt => {
+			if ((evt.ctrlKey || evt.metaKey) && evt.key === 'Enter') {
+				evt.preventDefault();
+				submitData('text');
+			}
+		});
+	}
+
+	const gridEl = document.getElementById('grid');
+	if (gridEl) {
+		gridEl.addEventListener('keydown', evt => {
+			if ((evt.ctrlKey || evt.metaKey) && evt.key === 'Enter') {
+				evt.preventDefault();
+				submitData('grid');
+			}
+		});
+	}
 
 	const addBirthdayBtn = document.getElementById('add-birthday-btn');
 	if (addBirthdayBtn) {
