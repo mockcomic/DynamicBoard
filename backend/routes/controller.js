@@ -36,7 +36,9 @@ function removeOuterQuotes(value) {
 }
 
 function buildStrictDate(month, day, year) {
-	return moment(`${year}-${month}-${day}`, 'YYYY-M-D', true).startOf('day');
+	return moment
+		.utc(`${year}-${month}-${day}`, 'YYYY-M-D', true)
+		.startOf('day');
 }
 
 function getNextYearlyOccurrence(month, day, today) {
@@ -73,7 +75,7 @@ const functionCalls = {
 				return NaN;
 			}
 
-			const today = moment().startOf('day');
+			const today = moment.utc().startOf('day');
 			const repeatFlag = parseBooleanFlag(repeatRaw);
 			const isYearly =
 				repeatFlag != null
@@ -114,7 +116,7 @@ const functionCalls = {
 				return NaN;
 			}
 
-			const today = moment().startOf('day');
+			const today = moment.utc().startOf('day');
 			const nextBirthday = getNextYearlyOccurrence(month, day, today);
 			if (!nextBirthday) {
 				logWarn('Invalid next birthday occurrence', { args: arr });

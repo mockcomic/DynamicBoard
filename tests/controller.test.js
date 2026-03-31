@@ -15,10 +15,10 @@ const {
 const originalFetch = global.fetch;
 const originalWriteFileSync = fs.writeFileSync;
 
-function getNextOccurrence(month, day, today = moment().startOf('day')) {
+function getNextOccurrence(month, day, today = moment.utc().startOf('day')) {
 	const startYear = today.year();
 	for (let year = startYear; year <= startYear + 8; year++) {
-		const candidate = moment(
+		const candidate = moment.utc(
 			`${year}-${month}-${day}`,
 			'YYYY-M-D',
 			true
@@ -37,7 +37,7 @@ test.afterEach(() => {
 });
 
 test('tillDate replaces future date placeholder with day difference', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().add(10, 'days');
 	const input = `Event in {tillDate(${target.format('M,D,YYYY')})} days`;
 	const expected = `Event in ${target.diff(today, 'days')} days`;
@@ -46,7 +46,7 @@ test('tillDate replaces future date placeholder with day difference', () => {
 });
 
 test('tillDate counts absolute days for a past date', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().subtract(4, 'days');
 	const input = `Event was {tillDate(${target.format('M,D,YYYY')})} days ago`;
 	const expected = `Event was ${Math.abs(target.diff(today, 'days'))} days ago`;
@@ -55,7 +55,7 @@ test('tillDate counts absolute days for a past date', () => {
 });
 
 test('tillDate uses yearly occurrence for repeatEveryYear messages', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().subtract(40, 'days');
 	const month = Number(target.format('M'));
 	const day = Number(target.format('D'));
@@ -67,7 +67,7 @@ test('tillDate uses yearly occurrence for repeatEveryYear messages', () => {
 });
 
 test('tillDate supports explicit yearly flag as fourth parameter', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().subtract(1, 'day');
 	const month = Number(target.format('M'));
 	const day = Number(target.format('D'));
@@ -79,7 +79,7 @@ test('tillDate supports explicit yearly flag as fourth parameter', () => {
 });
 
 test('tillDate explicit false flag keeps absolute mode', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().subtract(7, 'days');
 	const input = `Event was {tillDate(${target.format('M,D,YYYY')},false)} days ago`;
 	const expected = `Event was ${Math.abs(target.diff(today, 'days'))} days ago`;
@@ -88,7 +88,7 @@ test('tillDate explicit false flag keeps absolute mode', () => {
 });
 
 test('birthday returns Happy Birthday on the exact birthday', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const month = today.format('M');
 	const day = today.format('D');
 	const input = `{birthday(Ada,${month},${day},1994,30)}`;
@@ -97,7 +97,7 @@ test('birthday returns Happy Birthday on the exact birthday', () => {
 });
 
 test('birthday returns countdown when inside days-ahead window', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().add(5, 'days');
 	const month = target.format('M');
 	const day = target.format('D');
@@ -107,7 +107,7 @@ test('birthday returns countdown when inside days-ahead window', () => {
 });
 
 test('birthday uses default 30-day window when daysAhead is omitted', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().add(14, 'days');
 	const month = target.format('M');
 	const day = target.format('D');
@@ -117,7 +117,7 @@ test('birthday uses default 30-day window when daysAhead is omitted', () => {
 });
 
 test('birthday returns empty string when outside days-ahead window', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().add(45, 'days');
 	const month = target.format('M');
 	const day = target.format('D');
@@ -150,7 +150,7 @@ test('malformed placeholder command leaves input unchanged', () => {
 });
 
 test('tillDate handles whitespace around arguments', () => {
-	const today = moment().startOf('day');
+	const today = moment.utc().startOf('day');
 	const target = today.clone().add(2, 'days');
 	const input = `In {tillDate( ${target.format('M')} , ${target.format('D')} , ${target.format('YYYY')} )} days`;
 	const expected = `In ${target.diff(today, 'days')} days`;
