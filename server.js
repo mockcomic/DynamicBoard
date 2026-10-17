@@ -1,11 +1,10 @@
 const express = require('express');
 const path = require('path');
-const ejs = require('ejs');
 const routes = require('./backend/routes');
 const os = require('os');
 const { logInfo } = require('./backend/utils/logger');
 const app = express();
-const port = 4000;
+const port = Number(process.env.PORT) || 4000;
 
 function get192LanIP() {
 	const nets = os.networkInterfaces();
@@ -38,19 +37,19 @@ app.use(
 		},
 	})
 );
-app.set('views', path.join(__dirname, 'public'));
-
-app.engine('html', ejs.renderFile);
-app.set('view engine', 'html');
 
 app.use(express.json());
 
 app.use('/', routes);
 
-app.listen(port, () => {
-	const lanIP = get192LanIP() || '127.0.0.1';
-	logInfo('Server started', {
-		local: `http://localhost:${port}`,
-		network: `http://${lanIP}:${port}`,
+if (require.main === module) {
+	app.listen(port, () => {
+		const lanIP = get192LanIP() || '127.0.0.1';
+		logInfo('Server started', {
+			local: `http://localhost:${port}`,
+			network: `http://${lanIP}:${port}`,
+		});
 	});
-});
+}
+
+module.exports = app;

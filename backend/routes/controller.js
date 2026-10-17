@@ -1,10 +1,20 @@
-const moment = require('moment');
+const dayjs = require('dayjs');
+const utcPlugin = require('dayjs/plugin/utc');
+const timezonePlugin = require('dayjs/plugin/timezone');
+const isBetweenPlugin = require('dayjs/plugin/isBetween');
 const { logInfo, logWarn, logError } = require('../utils/logger');
 const {
 	ensureConfigSync,
 	readConfigSync,
 	writeConfigSync,
+	isValidTimezone,
 } = require('../services/config-store');
+
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
+dayjs.extend(isBetweenPlugin);
+
+const SEND_TIMEOUT_MS = 10000;
 
 let config = null;
 let isLooping = false;
@@ -133,16 +143,51 @@ function findTemplatePlaceholder(input) {
 	return null;
 }
 
-function buildStrictDate(month, day, year) {
-	return moment.utc(`${year}-${month}-${day}`, 'YYYY-M-D', true).startOf('day');
+// --- Timezone helpers -------------------------------------------------------
+
+function resolveTimezone() {
+	const tz = config?.timezone;
+	if (typeof tz === 'string' && isValidTimezone(tz)) return tz;
+	// Fall back to the server's system zone instead of UTC so "today" matches
+	// the board owner's calendar day.
+	return dayjs.tz.guess();
 }
 
-function getNextYearlyOccurrence(month, day, today) {
-	const startYear = today.year();
+// Calendar dates are compared as epoch-day numbers so daylight-saving days
+// (23/25 hours) can never shift a day difference.
+function toDayNumber(year, month, day) {
+	return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+}
+
+function todayDayNumber(tz) {
+	const now = dayjs().tz(tz);
+	return toDayNumber(now.year(), now.month() + 1, now.date());
+}
+
+/**
+ * Returns the epoch-day number for month/day/year, or null when the calendar
+ * date does not exist (e.g. Feb 30) or the arguments are out of range.
+ */
+function buildStrictDate(month, day, year) {
+	if (![month, day, year].every(Number.isInteger)) return null;
+	if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+	if (year < 1000 || year > 9999) return null;
+	const d = new Date(Date.UTC(year, month - 1, day));
+	if (
+		d.getUTCFullYear() !== year ||
+		d.getUTCMonth() !== month - 1 ||
+		d.getUTCDate() !== day
+	) {
+		return null;
+	}
+	return Math.floor(d.getTime() / 86400000);
+}
+
+function getNextYearlyOccurrence(month, day, todayNum, startYear) {
 	for (let year = startYear; year <= startYear + 8; year++) {
 		const candidate = buildStrictDate(month, day, year);
-		if (!candidate.isValid()) continue;
-		if (candidate.isBefore(today)) continue;
+		if (candidate == null) continue; // e.g. Feb 29 in a non-leap year
+		if (candidate < todayNum) continue;
 		return candidate;
 	}
 	return null;
@@ -159,33 +204,33 @@ const functionCalls = {
 			const day = Number(dayRaw);
 			const year = Number(yearRaw);
 
-			if (![month, day, year].every(Number.isFinite)) {
-				logWarn('Invalid tillDate arguments', { args: arr });
-				return NaN;
-			}
-
-			const targetDate = buildStrictDate(month, day, year);
-
-			if (!targetDate.isValid()) {
+			const targetNum = buildStrictDate(month, day, year);
+			if (targetNum == null) {
 				logWarn('Invalid tillDate date', { args: arr });
 				return NaN;
 			}
 
-			const today = moment.utc().startOf('day');
+			const tz = resolveTimezone();
+			const todayNum = todayDayNumber(tz);
 			const repeatFlag = parseBooleanFlag(repeatRaw);
 			const isYearly =
 				repeatFlag != null ? repeatFlag : context?.repeatEveryYear === true;
 
 			if (isYearly) {
-				const nextOccurrence = getNextYearlyOccurrence(month, day, today);
-				if (!nextOccurrence) {
+				const nextOccurrence = getNextYearlyOccurrence(
+					month,
+					day,
+					todayNum,
+					dayjs().tz(tz).year(),
+				);
+				if (nextOccurrence == null) {
 					logWarn('Invalid yearly tillDate date', { args: arr });
 					return NaN;
 				}
-				return nextOccurrence.diff(today, 'days');
+				return nextOccurrence - todayNum;
 			}
 
-			return Math.abs(targetDate.diff(today, 'days'));
+			return Math.abs(targetNum - todayNum);
 		},
 	},
 	birthday: {
@@ -215,15 +260,21 @@ const functionCalls = {
 				return NaN;
 			}
 
-			const birthDate = buildStrictDate(month, day, year);
-			if (!birthDate.isValid()) {
+			if (buildStrictDate(month, day, year) == null) {
 				logWarn('Invalid birthday date', { args: arr });
 				return NaN;
 			}
 
-			const today = moment.utc().startOf('day');
-			const nextBirthday = getNextYearlyOccurrence(month, day, today);
-			if (!nextBirthday) {
+			const tz = resolveTimezone();
+			const now = dayjs().tz(tz);
+			const todayNum = todayDayNumber(tz);
+			const nextBirthday = getNextYearlyOccurrence(
+				month,
+				day,
+				todayNum,
+				now.year(),
+			);
+			if (nextBirthday == null) {
 				logWarn('Invalid next birthday occurrence', { args: arr });
 				return NaN;
 			}
@@ -231,7 +282,7 @@ const functionCalls = {
 			const safeName = removeOuterQuotes(nameRaw);
 			const daysToTextTemplate = removeOuterQuotes(daysToTextRaw);
 			const dayOfTextTemplate = removeOuterQuotes(dayOfTextRaw);
-			const daysUntil = nextBirthday.diff(today, 'days');
+			const daysUntil = nextBirthday - todayNum;
 			const dayLabel = daysUntil === 1 ? 'day' : 'days';
 
 			if (daysUntil === 0) {
@@ -264,29 +315,19 @@ const functionCalls = {
 	},
 	todayDate: {
 		name: 'todayDate',
-		description: 'Returns todays date.',
-		callBack: () => {
-			return new Date()
-				.toISOString()
-				.slice(0, 10)
-				.split('-')
-				.reverse()
-				.join('/');
-		},
+		description: 'Returns today\'s date in the configured time zone.',
+		callBack: () => dayjs().tz(resolveTimezone()).format('DD/MM/YYYY'),
 	},
 	todayIso: {
 		name: 'todayIso',
-		description: 'Returns today in YYYY-MM-DD format.',
-		callBack: () => {
-			return new Date().toISOString().slice(0, 10);
-		},
+		description: 'Returns today in YYYY-MM-DD format (configured time zone).',
+		callBack: () => dayjs().tz(resolveTimezone()).format('YYYY-MM-DD'),
 	},
 	nowTime: {
 		name: 'nowTime',
-		description: 'Returns current local time in HH:mm format.',
-		callBack: () => {
-			return moment().format('HH:mm');
-		},
+		description:
+			'Returns current time in HH:mm format (configured time zone).',
+		callBack: () => dayjs().tz(resolveTimezone()).format('HH:mm'),
 	},
 };
 
@@ -313,26 +354,33 @@ function loadConfig() {
 }
 
 function checkVariable(string, context = {}) {
-	const match = findTemplatePlaceholder(string);
-	if (!match) return string;
+	if (typeof string !== 'string') return string;
 
-	const { placeholder, command } = match;
-	const commandMatch = command.match(/^([a-zA-Z0-9_]+)(?:\((.*)\))?$/);
-	if (!commandMatch) return string;
+	let output = string;
+	// Replace every placeholder (previously only the first was handled).
+	for (let guard = 0; guard < 20; guard++) {
+		const match = findTemplatePlaceholder(output);
+		if (!match) break;
 
-	const [, functionName, rawParams = ''] = commandMatch;
-	const params = splitFunctionParams(rawParams);
+		const { placeholder, command } = match;
+		const commandMatch = command.match(/^([a-zA-Z0-9_]+)(?:\((.*)\))?$/);
+		if (!commandMatch) break;
 
-	if (functionCalls[functionName]) {
-		const result = functionCalls[functionName].callBack(params, context);
-		logInfo('Template variable replaced', {
-			placeholder,
-			result,
-		});
-		return string.replace(placeholder, result);
+		const [, functionName, rawParams = ''] = commandMatch;
+		const fn = functionCalls[functionName];
+		if (!fn) break;
+
+		const params = splitFunctionParams(rawParams);
+		const result = fn.callBack(params, context);
+		logInfo('Template variable replaced', { placeholder, result });
+
+		// Function-valued replacement avoids `$&`-style patterns in results.
+		const next = output.replace(placeholder, () => String(result));
+		if (next === output) break;
+		output = next;
 	}
 
-	return string;
+	return output;
 }
 
 async function sendToVestaboard(data, dataType) {
@@ -342,9 +390,21 @@ async function sendToVestaboard(data, dataType) {
 		return { ok: false, status: 400, statusText: 'missing_api_key' };
 	}
 	try {
+		let payload = data;
+		if (dataType === 'grid' && typeof payload === 'string') {
+			// Grid messages are stored as JSON strings; send the parsed array so
+			// the board receives a real grid instead of an encoded string.
+			try {
+				payload = JSON.parse(payload);
+			} catch {
+				logWarn('Invalid grid payload', { sample: payload.slice(0, 40) });
+				return { ok: false, status: 400, statusText: 'invalid_grid_payload' };
+			}
+		}
+
 		const body =
 			dataType === 'grid'
-				? JSON.stringify(data)
+				? JSON.stringify(payload)
 				: JSON.stringify({ text: data });
 
 		const res = await fetch('https://rw.vestaboard.com/', {
@@ -354,6 +414,8 @@ async function sendToVestaboard(data, dataType) {
 				'X-Vestaboard-Read-Write-Key': config.apiWriteKey,
 			},
 			method: 'POST',
+			// Without a timeout a hung request stalls the rotation loop forever.
+			signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
 		});
 		logInfo('Vestaboard response', {
 			status: res.status,
@@ -398,19 +460,24 @@ async function processEvent(messageData) {
 
 	const isYearly = eventData.repeatEveryYear;
 
-	const now = moment();
-	const startRaw = moment(eventData.startDate);
-	const endRaw = moment(eventData.endDate);
+	const tz = resolveTimezone();
+	const now = dayjs().tz(tz);
+	const startRaw = dayjs.tz(eventData.startDate, tz);
+	const endRaw = dayjs.tz(eventData.endDate, tz);
 
 	if (!startRaw.isValid() || !endRaw.isValid()) return false;
+
+	// Re-stamp a date onto another year, preserving the wall-clock time in tz.
+	const withYear = (dj, year) =>
+		dayjs.tz(`${year}${dj.format('MM-DDTHH:mm')}`, tz);
 
 	let start = startRaw;
 	let end = endRaw;
 
 	if (isYearly) {
 		// Repeat every year based on month/day/time, including ranges that span the year boundary.
-		start = startRaw.clone().year(now.year());
-		end = endRaw.clone().year(now.year());
+		start = withYear(startRaw, now.year());
+		end = withYear(endRaw, now.year());
 
 		if (end.isBefore(start)) {
 			// Example: Dec 1 - Feb 25 should wrap into the next year.
@@ -431,12 +498,12 @@ async function processEvent(messageData) {
 		start: start.toISOString(),
 		end: end.toISOString(),
 	});
-	if (now.isBetween(start, end, undefined, '[]')) {
+	if (now.isBetween(start, end, null, true)) {
 		logInfo('Event is within range', { id: messageData.id });
 		return true;
 	} else if (!isYearly && now.isAfter(end)) {
 		logInfo('Deleting expired non-yearly message', { id: messageData.id });
-		await deleteMessage(messageData.id);
+		deleteMessage(messageData.id);
 	}
 
 	return false;
@@ -472,8 +539,9 @@ async function processMessages() {
 			}
 		}
 
+		let result;
 		if (messageData?.type === 'grid') {
-			await sendToVestaboard(messageData.data, 'grid');
+			result = await sendToVestaboard(messageData.data, 'grid');
 		} else if (messageData?.type === 'text') {
 			const msg = checkVariable(messageData.data, {
 				repeatEveryYear: messageData?.eventData?.repeatEveryYear === true,
@@ -485,7 +553,18 @@ async function processMessages() {
 				idx = (idx + 1) % len;
 				continue;
 			}
-			await sendToVestaboard(msg, 'text');
+			result = await sendToVestaboard(msg, 'text');
+		}
+
+		if (result && !result.ok) {
+			// Transient failure (offline board, outage, timeout): keep the same
+			// message selected so the next tick retries it instead of skipping.
+			logWarn('Send failed; will retry this message on the next tick', {
+				id: messageData.id,
+				status: result.status,
+				statusText: result.statusText,
+			});
+			return;
 		}
 
 		lastMsg = idx;
@@ -518,25 +597,35 @@ function loopMessages() {
 	loop();
 }
 
+// Reload config.json and (re)start the rotation loop when needed. Called both
+// from the file poll below and right after PUT /api writes (via
+// notifyConfigChanged) so changes apply immediately.
+function reloadConfig() {
+	const nextConfig = loadConfig();
+	if (!nextConfig?.apiWriteKey) {
+		return;
+	}
+
+	const wasEnabled = runtimeData?.isEnabled;
+	const timerChanged = runtimeData?.timer !== nextConfig.timer;
+
+	runtimeData = nextConfig;
+
+	if (runtimeData.isEnabled && (!wasEnabled || timerChanged)) {
+		logInfo('Updating loop with new timer', { timer: runtimeData.timer });
+		clearTimeout(intervalId);
+		isLooping = false;
+		loopMessages();
+	}
+}
+
+function notifyConfigChanged() {
+	reloadConfig();
+}
+
 function main() {
-	setInterval(() => {
-		const nextConfig = loadConfig();
-		if (!nextConfig?.apiWriteKey) {
-			return;
-		}
-
-		const wasEnabled = runtimeData?.isEnabled;
-		const timerChanged = runtimeData?.timer !== nextConfig.timer;
-
-		runtimeData = nextConfig;
-
-		if (runtimeData.isEnabled && (!wasEnabled || timerChanged)) {
-			logInfo('Updating loop with new timer', { timer: runtimeData.timer });
-			clearTimeout(intervalId);
-			isLooping = false;
-			loopMessages();
-		}
-	}, 5000);
+	// Fast path for UI-driven changes; the poll is a fallback for manual edits.
+	setInterval(reloadConfig, 5000);
 }
 
 if (process.env.DYNAMICBOARD_DISABLE_MAIN !== '1') {
@@ -562,8 +651,9 @@ function __resetStateForTests() {
 }
 
 module.exports = {
-	checkVariable: checkVariable,
-	sendToVestaboard: sendToVestaboard,
+	checkVariable,
+	sendToVestaboard,
+	notifyConfigChanged,
 	__setConfigForTests,
 	__getConfigForTests,
 	__resetStateForTests,

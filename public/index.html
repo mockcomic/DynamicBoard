@@ -9,7 +9,7 @@
 			name="description"
 			content="A dynamic board for creating and managing events."
 		/>
-		<meta name="theme-color" content="#000000" />
+		<meta name="theme-color" content="#242424" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta
@@ -21,51 +21,55 @@
 			rel="stylesheet"
 			href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
 		/>
-		<link rel="stylesheet" href="./css/styles.css?v=20260330c" />
+		<link rel="stylesheet" href="./css/styles.css?v=20261016e" />
 		<link rel="manifest" href="/manifest.json" />
 	</head>
 
 	<body>
 		<!-- Header Section -->
-		<section
-			class="hero is-danger is-bold"
-			id="api-key-warning"
-			style="display: none"
-		>
-			<div class="container has-text-centered p-5">
-				<h2 class="subtitle">Your API key seems to be invalid or missing</h2>
-				<div class="container">
-					<button class="button is-primary is-rounded" onclick="setApiKey()">
+		<header class="app-header">
+			<div class="container">
+				<div class="app-header-row">
+					<div class="app-header-text">
+						<h1 class="title is-5 is-3-tablet mb-1">Dynamicboard</h1>
+						<p class="subtitle is-7 is-6-tablet mb-0">
+							A dynamic board for creating and managing events.
+						</p>
+					</div>
+					<button
+						class="button is-small is-rounded is-info is-light"
+						id="legend-toggle-btn"
+						type="button"
+					>
+						Legend
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<section id="api-key-warning" class="section pt-0" style="display: none">
+			<div class="container">
+				<div class="notification is-warning is-bold py-4 mb-0">
+					<p class="has-text-weight-semibold mb-3">
+						Your API key seems to be invalid or missing.
+					</p>
+					<button class="button is-primary is-rounded" id="api-key-banner-btn">
 						Enter API Key
 					</button>
 				</div>
 			</div>
 		</section>
 
-		<section class="section">
-			<div class="container">
-				<div class="box has-text-centered mt-5 p-5">
-					<h1 class="title">Dynamicboard</h1>
-					<h2 class="subtitle">
-						A dynamic board for creating and managing events.
-					</h2>
-					<h3 class="subtitle is-6">
-						Click on a cell to edit it. Use the buttons below to submit or clear
-						the grid.
-					</h3>
-					<div class="buttons is-centered mt-4">
-						<button class="button is-info is-rounded" id="legend-toggle-btn">
-							Show Legend
-						</button>
-					</div>
-				</div>
-			</div>
-		</section>
-
 		<!-- Grid Section -->
-		<section>
+		<section class="section pt-4 pb-4">
 			<div class="container">
-				<div id="grid" class="grid"></div>
+				<div class="grid-viewport">
+					<div id="grid" class="grid"></div>
+				</div>
+				<p class="help has-text-centered mt-2">
+					Click a cell to edit it, then use the buttons below to submit or
+					clear the grid.
+				</p>
 			</div>
 		</section>
 
@@ -82,13 +86,15 @@
 						<div class="buttons is-centered mt-4">
 							<button
 								class="button is-primary is-rounded"
-								onclick="submitData('grid')"
+								id="submit-grid-btn"
+								type="button"
 							>
 								Submit
 							</button>
 							<button
 								class="button is-warning is-rounded"
-								onclick="clearGrid()"
+								id="clear-grid-btn"
+								type="button"
 							>
 								Clear
 							</button>
@@ -121,7 +127,8 @@
 						>
 							<button
 								class="button is-primary is-rounded has-text-weight-semibold"
-								onclick="submitData('text')"
+								type="button"
+								id="submit-text-btn"
 							>
 								Submit
 							</button>
@@ -129,7 +136,6 @@
 								class="button is-warning is-light is-rounded has-text-weight-semibold"
 								type="button"
 								id="schedule-btn"
-								onclick="openScheduleModal()"
 							>
 								Schedule
 							</button>
@@ -137,7 +143,6 @@
 								class="button is-link is-light is-rounded has-text-weight-semibold"
 								type="button"
 								id="add-birthday-btn"
-								onclick="openBirthdayModal()"
 							>
 								Add Birthday
 							</button>
@@ -162,13 +167,14 @@
 								min="1"
 								class="input"
 								placeholder="Minutes"
+								aria-label="Rotation interval in minutes"
 								style="width: 120px"
 							/>
 						</div>
 						<div class="control">
-							<a id="timerInput-btn" class="button is-primary">
+							<button id="timerInput-btn" class="button is-primary" type="button">
 								Update Interval
-							</a>
+							</button>
 						</div>
 					</div>
 					<p class="help mt-0">How often messages rotate on the board.</p>
@@ -186,7 +192,7 @@
 
 		<!-- Legend Modal -->
 		<div class="modal" id="legend-modal">
-			<div class="modal-background" onclick="closeEventModal()"></div>
+			<div class="modal-background" id="legend-modal-bg"></div>
 			<div class="modal-content">
 				<div class="box p-5">
 					<p class="title is-4">Legend:</p>
@@ -220,48 +226,7 @@
 			</div>
 			<button
 				class="modal-close is-large"
-				onclick="closeEventModal()"
-				aria-label="close"
-			></button>
-		</div>
-
-		<!-- Event Modal -->
-		<div class="modal" id="event-modal">
-			<div class="modal-background"></div>
-			<div class="modal-content">
-				<div class="box p-5">
-					<p class="title is-4">Legend:</p>
-					<div class="content">
-						<div>
-							<strong>All functions must be wrapped with {}</strong>
-							<input class="input mt-2" />
-						</div>
-						<ul class="mt-4">
-							<li>
-								<strong>tillDate(mm,dd,yyyy)</strong><br />
-								Returns how many days till the date specified. For yearly
-								repeating events it counts to the next yearly occurrence.
-							</li>
-							<li>
-								<strong>birthday(name,mm,dd,yyyy,daysAhead)</strong><br />
-								Shows a countdown inside the days-ahead window and switches to
-								Happy Birthday on the day.
-							</li>
-							<li>
-								<strong>todayDate()</strong><br />
-								Returns the current date.
-							</li>
-						</ul>
-						<div class="has-text-weight-semibold mt-4">
-							<strong>You can use the following colored square emojis:</strong>
-							<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
-						</div>
-					</div>
-				</div>
-			</div>
-			<button
-				class="modal-close is-large"
-				id="close-event-btn"
+				id="legend-close-btn"
 				aria-label="close"
 			></button>
 		</div>
@@ -294,14 +259,23 @@
 					<div class="columns is-mobile">
 						<div class="column">
 							<label class="label" for="birthday-month">Month</label>
-							<input
-								class="input"
-								type="number"
-								id="birthday-month"
-								min="1"
-								max="12"
-								placeholder="4"
-							/>
+							<div class="select is-fullwidth">
+								<select id="birthday-month">
+									<option value="">Month</option>
+									<option value="1">January</option>
+									<option value="2">February</option>
+									<option value="3">March</option>
+									<option value="4">April</option>
+									<option value="5">May</option>
+									<option value="6">June</option>
+									<option value="7">July</option>
+									<option value="8">August</option>
+									<option value="9">September</option>
+									<option value="10">October</option>
+									<option value="11">November</option>
+									<option value="12">December</option>
+								</select>
+							</div>
 						</div>
 						<div class="column">
 							<label class="label" for="birthday-day">Day</label>
@@ -481,12 +455,62 @@
 			</div>
 		</div>
 
+		<!-- API Key Modal -->
+		<div class="modal" id="api-key-modal">
+			<div class="modal-background" id="api-key-modal-bg"></div>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Enter API Key</p>
+					<button
+						class="delete"
+						id="api-key-close-head-btn"
+						aria-label="close"
+					></button>
+				</header>
+				<section class="modal-card-body">
+					<div class="field">
+						<label class="label" for="api-key-input">Vestaboard API key</label>
+						<div class="field has-addons">
+							<div class="control is-expanded">
+								<input
+									class="input"
+									type="password"
+									id="api-key-input"
+									placeholder="Your write key"
+									autocomplete="off"
+									autocapitalize="off"
+									spellcheck="false"
+								/>
+							</div>
+							<div class="control">
+								<button
+									class="button"
+									id="api-key-toggle-btn"
+									type="button"
+									aria-pressed="false"
+								>
+									Show
+								</button>
+							</div>
+						</div>
+						<p class="help">
+							The key is stored on the server, never in the browser.
+						</p>
+					</div>
+				</section>
+				<footer class="modal-card-foot schedule-modal-actions">
+					<button class="button is-primary" id="api-key-save-btn">
+						Save API Key
+					</button>
+					<button class="button" id="api-key-cancel-btn">Cancel</button>
+				</footer>
+			</div>
+		</div>
+
 		<!-- Messages Section -->
 		<section class="section">
 			<div class="container">
-				<h2 class="title is-2 has-text-centered has-text-info-light mb-5">
-					---Messages---
-				</h2>
+				<h2 class="title is-4 has-text-centered mb-5">Saved Messages</h2>
 				<div class="has-text-centered">
 					<div id="messages"></div>
 				</div>
@@ -495,17 +519,40 @@
 
 		<footer class="has-text-centered">
 			<div class="container">
+				<div
+					class="field has-addons is-centered"
+					style="max-width: 480px; margin: 0 auto 0.75rem"
+				>
+					<div class="control is-expanded">
+						<input
+							class="input is-small"
+							id="timezone-input"
+							type="text"
+							placeholder="Time zone (e.g. America/Los_Angeles)"
+							autocomplete="off"
+						/>
+					</div>
+					<div class="control">
+						<button class="button is-small is-primary" id="timezone-save-btn">
+							Save Time Zone
+						</button>
+					</div>
+				</div>
+				<p class="is-size-7 has-text-grey mb-3">
+					Leave empty to use the server's local time zone. Affects birthdays,
+					countdowns, dates, and event schedules.
+				</p>
 				<button
 					class="button is-warning is-rounded"
 					id="reset-api-key-btn"
-					onclick="resetApiKey()"
+					type="button"
 				>
 					Reset API Key
 				</button>
-				<p class="is-size-7 has-text-grey-light mt-2">Build 20260330c</p>
+				<p class="is-size-7 has-text-grey-light mt-2">Build 20261016e</p>
 			</div>
 		</footer>
 
-		<script src="./js/app.js?v=20260330c" defer></script>
+		<script src="./js/app.js?v=20261016e" type="module"></script>
 	</body>
 </html>

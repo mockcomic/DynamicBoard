@@ -1,98 +1,43 @@
+// Dynamicboard client entry. Loads config, renders messages, wires the UI.
+import {
+	log,
+	readServerError,
+	consumePendingToast,
+	showToast,
+	formatDate,
+	openModal,
+	closeModal,
+	withBusy,
+} from './ui.js';
+import {
+	setCodex,
+	convertData,
+	createGrid,
+	clearGrid,
+	displayMessage,
+	findUnsupportedChars,
+	isGridEmpty,
+} from './grid.js';
+import {
+	eventDataDefualt,
+	eventData,
+	syncScheduleStateFromInputs,
+	updateScheduleSummary,
+	setScheduleControlsEnabled,
+	applySchedulePreset,
+	clearScheduleSettings,
+	openScheduleModal,
+	closeScheduleModal,
+	applyScheduleSettings,
+	validateScheduleForSubmit,
+	setStartNowIfRequested,
+	setScheduleRangeToAllDay,
+} from './schedule.js';
+
 const messagesList = document.getElementById('messages');
 const apiBase = window.location.origin;
 
-function log(level, message, meta) {
-	const prefix = `[Dynamicboard] [${level.toUpperCase()}] ${message}`;
-	const output = meta instanceof Error ? meta.message : meta;
-	switch (level) {
-		case 'error':
-			output !== undefined
-				? console.error(prefix, output)
-				: console.error(prefix);
-			break;
-		case 'warn':
-			output !== undefined
-				? console.warn(prefix, output)
-				: console.warn(prefix);
-			break;
-		default:
-			output !== undefined ? console.log(prefix, output) : console.log(prefix);
-			break;
-	}
-}
-
-async function readServerError(res) {
-	try {
-		const text = await res.text();
-		if (!text) return res.statusText || `HTTP ${res.status}`;
-		try {
-			const json = JSON.parse(text);
-			if (json.error && json.details) {
-				return `${json.error}: ${json.details}`;
-			}
-			return json.error || json.message || text;
-		} catch {
-			return text;
-		}
-	} catch (err) {
-		log('warn', 'Failed to read server error', err);
-		return res.statusText || `HTTP ${res.status}`;
-	}
-}
-
-function consumePendingToast() {
-	try {
-		const raw = sessionStorage.getItem('pendingToast');
-		if (!raw) return;
-		sessionStorage.removeItem('pendingToast');
-		const t = JSON.parse(raw);
-		if (t && t.message) showToast(t.message, t.type || 'success');
-	} catch (err) {
-		// If toast parsing fails, don't break the page.
-		log('warn', 'Failed to read pending toast', err);
-	}
-}
-
-function registerServiceWorker() {
-	if (!('serviceWorker' in navigator)) {
-		log('warn', 'Service workers are not supported in this browser');
-		return;
-	}
-
-	window.addEventListener('load', () => {
-		navigator.serviceWorker
-			.register('/service-worker.js')
-			.then(registration => {
-				log('info', 'Service worker registered', {
-					scope: registration.scope,
-				});
-
-				if (registration.waiting && navigator.serviceWorker.controller) {
-					showToast('App update ready. Refresh to apply it.', 'info');
-				}
-
-				registration.addEventListener('updatefound', () => {
-					const installingWorker = registration.installing;
-					if (!installingWorker) return;
-
-					installingWorker.addEventListener('statechange', () => {
-						if (
-							installingWorker.state === 'installed' &&
-							navigator.serviceWorker.controller
-						) {
-							showToast(
-								'New app version available. Refresh to update.',
-								'info',
-							);
-						}
-					});
-				});
-			})
-			.catch(err => {
-				log('warn', 'Service worker registration failed', err);
-			});
-	});
-}
+let configData = {};
 
 window.addEventListener('error', evt => {
 	// iOS Safari can fail silently; surface errors as a toast.
@@ -109,37 +54,76 @@ window.addEventListener('unhandledrejection', evt => {
 	showToast(`Error: ${msg}`, 'danger');
 });
 
-const gridX = 22;
-const gridY = 6;
-const gridData = Array.from({ length: gridY }, () => Array(gridX).fill(''));
+function registerServiceWorker() {
+	if (!('serviceWorker' in navigator)) {
+		log('warn', 'Service workers are not supported in this browser');
+		return;
+	}
 
-const eventDataDefualt = {
-	isEvent: false,
-	startDate: '',
-	endDate: '',
-	repeatEveryYear: false,
-};
+	window.addEventListener('load', () => {
+		navigator.serviceWorker
+			.register('/service-worker.js')
+			.then(registration => {
+				log('info', 'Service worker registered', {
+					scope: registration.scope,
+				});
 
-let eventData = {
-	isEvent: false,
-	startDate: '',
-	endDate: '',
-	repeatEveryYear: false,
-};
+				// Offer a one-tap refresh instead of asking the user to reload manually.
+				const offerRefresh = () =>
+					showToast('New version available.', 'info', {
+						duration: 0,
+						actionLabel: 'Refresh',
+						onAction: async () => {
+							try {
+								const keys = await caches.keys();
+								await Promise.all(
+									keys.map(key =>
+										key.startsWith('DynamicBoard') ? caches.delete(key) : Promise.resolve(),
+									),
+								);
+							} finally {
+								window.location.reload();
+							}
+						},
+					});
 
-let configData = {};
-let codex = {};
+				if (registration.waiting && navigator.serviceWorker.controller) {
+					offerRefresh();
+				}
 
+				registration.addEventListener('updatefound', () => {
+					const installingWorker = registration.installing;
+					if (!installingWorker) return;
+
+					installingWorker.addEventListener('statechange', () => {
+						if (
+							installingWorker.state === 'installed' &&
+							navigator.serviceWorker.controller
+						) {
+							offerRefresh();
+						}
+					});
+				});
+			})
+			.catch(err => {
+				log('warn', 'Service worker registration failed', err);
+			});
+	});
+}
+
+// Load the character code table used to encode grid payloads.
 (async function () {
 	try {
-		const response = await fetch('../CharCode.json');
+		const response = await fetch(`${apiBase}/CharCode.json`, {
+			cache: 'no-store',
+		});
 		if (!response.ok) {
 			const errorMessage = await readServerError(response);
 			log('error', 'Failed to load CharCode.json', errorMessage);
 			showToast(`Failed to load character data: ${errorMessage}`, 'danger');
 			return;
 		}
-		codex = await response.json();
+		setCodex(await response.json());
 	} catch (err) {
 		log('error', 'Failed to load CharCode.json', err);
 		showToast(
@@ -169,15 +153,31 @@ async function pushData(data) {
 	}
 }
 
-function loadData(array) {
+function renderMessages() {
 	messagesList.replaceChildren();
 
+	if (!Array.isArray(configData.messages) || configData.messages.length === 0) {
+		const empty = document.createElement('p');
+		empty.className = 'has-text-grey';
+		empty.textContent =
+			'No saved messages yet. Submit text or use the grid above.';
+		messagesList.appendChild(empty);
+		return;
+	}
+
+	configData.messages.forEach(createCard);
+}
+
+function loadData(array) {
 	const checkboxInput = document.getElementById('isEnabled');
 	checkboxInput.checked = !!array.isEnabled;
 	checkboxInput.onclick = async function () {
-		configData.isEnabled = !configData.isEnabled;
+		const previous = configData.isEnabled;
+		configData.isEnabled = checkboxInput.checked;
 		const result = await pushData(configData);
 		if (!result.ok) {
+			configData.isEnabled = previous;
+			checkboxInput.checked = !!previous;
 			showToast(`Failed to update setting: ${result.errorMessage}`, 'danger');
 		}
 	};
@@ -186,22 +186,57 @@ function loadData(array) {
 	const timerBtn = document.getElementById('timerInput-btn');
 	timerInput.value = configData.timer / 60000;
 	timerBtn.onclick = async function () {
-		const minutes = Number(timerInput.value);
-		if (!minutes || minutes <= 0) {
-			showToast('Please enter a valid number of minutes', 'warning');
-			return;
-		}
-		configData.timer = minutes * 60000;
-		const result = await pushData(configData);
-		if (result.ok) showToast('Time interval updated');
-		else
-			showToast(
-				`Failed to update time interval: ${result.errorMessage}`,
-				'danger',
-			);
+		await withBusy(timerBtn, async () => {
+			const minutes = Number(timerInput.value);
+			if (!minutes || minutes <= 0) {
+				showToast('Please enter a valid number of minutes', 'warning');
+				return;
+			}
+			configData.timer = minutes * 60000;
+			const result = await pushData(configData);
+			if (result.ok) showToast('Time interval updated');
+			else
+				showToast(
+					`Failed to update time interval: ${result.errorMessage}`,
+					'danger',
+				);
+		});
 	};
+	timerInput.addEventListener('keydown', evt => {
+		if (evt.key === 'Enter') {
+			evt.preventDefault();
+			timerBtn.click();
+		}
+	});
 
-	array.messages.forEach(createCard);
+	const timezoneInput = document.getElementById('timezone-input');
+	const timezoneBtn = document.getElementById('timezone-save-btn');
+	if (timezoneInput && timezoneBtn) {
+		timezoneInput.value = configData.timezone || '';
+		timezoneInput.placeholder =
+			'Use server time (' +
+			(Intl.DateTimeFormat().resolvedOptions().timeZone || 'system') +
+			')';
+		timezoneBtn.onclick = async function () {
+			await withBusy(timezoneBtn, async () => {
+				const value = timezoneInput.value.trim();
+				const previous = configData.timezone;
+				configData.timezone = value || null;
+				const result = await pushData(configData);
+				if (result.ok) {
+					showToast(value ? 'Time zone updated' : 'Using server time zone');
+				} else {
+					configData.timezone = previous;
+					showToast(
+						`Failed to update time zone: ${result.errorMessage}`,
+						'danger',
+					);
+				}
+			});
+		};
+	}
+
+	renderMessages();
 }
 
 async function getData() {
@@ -225,110 +260,19 @@ async function getData() {
 	}
 }
 
-function convertData() {
-	return gridData.map(function (row) {
-		return row.map(function (cell) {
-			return codex[cell.toUpperCase()];
-		});
-	});
-}
-
-function checkConfig(configData) {
-	if (!configData.apiWriteKey || configData.isValidKey == false) {
-		document.getElementById('api-key-warning').style.display = 'block';
+function checkConfig(cfg) {
+	// GET /api redacts the key; the client sees hasApiKey instead of apiWriteKey.
+	const warning = document.getElementById('api-key-warning');
+	if (!cfg.hasApiKey || cfg.isValidKey === false) {
+		warning.style.display = 'block';
+	} else {
+		warning.style.display = 'none';
 	}
-	pushData(configData).then(result => {
-		if (!result.ok) {
-			log('warn', 'Background config save failed', result.errorMessage);
-		}
-	});
 }
 
 // #endregion
 
-// #region Grid/Text
-function createGrid() {
-	const grid = document.getElementById('grid');
-	for (let i = 0; i < gridY; i++) {
-		for (let j = 0; j < gridX; j++) {
-			grid.appendChild(createInput(i, j));
-		}
-	}
-}
-
-function createInput(i, j) {
-	const input = document.createElement('input');
-	input.className = 'grid-item';
-	input.id = `${j},${i}`;
-
-	input.addEventListener('keydown', function (evt) {
-		function move(ni, nj) {
-			const el = document.getElementById(`${nj},${ni}`);
-			if (el) el.focus();
-		}
-		switch (evt.key) {
-			case 'Backspace':
-				input.value = '';
-				gridData[i][j] = '';
-				if (j === 0 && i === 0) move(0, 0);
-				else if (j === 0) move(i - 1, gridX - 1);
-				else move(i, j - 1);
-				break;
-			case 'ArrowRight':
-				if (j >= gridX - 1 && i >= gridY - 1) move(0, 0);
-				else if (j >= gridX - 1) move(i + 1, 0);
-				else move(i, j + 1);
-				break;
-			case 'ArrowLeft':
-				if (j === 0 && i === 0) move(0, 0);
-				else if (j === 0) move(i - 1, gridX - 1);
-				else move(i, j - 1);
-				break;
-			case 'ArrowUp':
-				move(i === 0 ? 0 : i - 1, j);
-				break;
-			case 'ArrowDown':
-				move(i === gridY - 1 ? i : i + 1, j);
-				break;
-		}
-	});
-
-	input.addEventListener('input', function (evt) {
-		if (evt.data == null) return;
-		if (evt.data !== ' ') gridData[i][j] = evt.data;
-		var next =
-			j >= gridX - 1 ? (i >= gridY - 1 ? [0, 0] : [i + 1, 0]) : [i, j + 1];
-		var nextInput = document.getElementById(`${next[1]},${next[0]}`);
-		if (nextInput) {
-			nextInput.value = '';
-			nextInput.focus();
-		}
-	});
-	return input;
-}
-
-function clearGrid() {
-	for (let i = 0; i < gridY; i++) {
-		for (let j = 0; j < gridX; j++) {
-			gridData[i][j] = '';
-			const input = document.getElementById(`${j},${i}`);
-			if (input) input.value = '';
-		}
-	}
-}
-
-function displayMessage() {
-	let message = '';
-	for (let i = 0; i < gridY; i++) {
-		let row = '';
-		for (let j = 0; j < gridX; j++) {
-			row += gridData[i][j] || ' ';
-		}
-		message += row + '\n';
-	}
-	return message;
-}
-
+// #region Submit
 function updateTextLength() {
 	const textInput = document.getElementById('textData');
 	const textLength = document.getElementById('text-length');
@@ -345,63 +289,55 @@ async function submitData(type) {
 
 		let msg, data;
 		if (type === 'grid') {
+			if (isGridEmpty()) {
+				showToast('The grid is empty — type a character first', 'warning');
+				return;
+			}
+			const unsupported = findUnsupportedChars();
+			if (unsupported.length) {
+				showToast(
+					`Unsupported characters for the board: ${unsupported.join(' ')}`,
+					'danger',
+				);
+				return;
+			}
 			msg = displayMessage();
 			data = JSON.stringify(convertData());
-			clearGrid();
 		} else if (type === 'text') {
 			const textInputData = document.getElementById('textData');
 			msg = textInputData.value;
 			data = textInputData.value;
-			textInputData.value = '';
+			if (!msg.trim()) {
+				showToast('Enter some text first', 'warning');
+				return;
+			}
 		} else {
 			log('error', 'Invalid type for submitData', type);
 			return;
 		}
 
 		syncScheduleStateFromInputs();
-		const { startDate, endDate } = getDateRange();
-
-		//! Check if vaild date range
-		const startVal = startDate ? new Date(startDate) : null;
-		const endVal = endDate ? new Date(endDate) : null;
-		const invalidOrder = startVal && endVal ? endVal < startVal : false;
-
-		if (
-			eventData.isEvent &&
-			(!startVal || !endVal || (!eventData.repeatEveryYear && invalidOrder))
-		) {
-			log('warn', 'Invalid date range');
-			showCustomAlert(
-				'Invalid schedule range. Open Schedule and provide valid dates or disable scheduling.',
-			);
-			return;
-		}
-
-		eventData.startDate = startDate;
-		eventData.endDate = endDate;
+		if (!validateScheduleForSubmit()) return;
 
 		configData.messages.push({
 			id: Date.now() + Math.floor(Math.random() * 1000),
 			type,
 			msg,
 			data,
-			eventData: eventData,
+			eventData: { ...eventData },
 		});
-
-		// Reset to a fresh object (avoids accidentally mutating the shared default)
-		eventData = { ...eventDataDefualt };
 
 		const result = await pushData(configData);
 		if (result.ok) {
+			// Only clear the inputs once the save actually landed.
+			if (type === 'grid') clearGrid();
+			else document.getElementById('textData').value = '';
+			updateTextLength();
 			clearScheduleSettings(false);
-			// Show the success toast after reload (iOS can be finicky about toasts
-			// right before navigation).
-			sessionStorage.setItem(
-				'pendingToast',
-				JSON.stringify({ message: 'Saved message', type: 'success' }),
-			);
-			window.location.reload();
+			renderMessages();
+			showToast('Saved message');
 		} else {
+			configData.messages.pop();
 			showToast(`Save failed: ${result.errorMessage}`, 'danger');
 		}
 	} catch (err) {
@@ -410,208 +346,75 @@ async function submitData(type) {
 	}
 }
 
-function getDateRange() {
-	const startEl = document.getElementById('startDateText');
-	const endEl = document.getElementById('endDateText');
-
-	const startDate = startEl ? startEl.value : '';
-	const endDate = endEl ? endEl.value : '';
-
-	return { startDate, endDate };
-}
-
-function syncScheduleStateFromInputs() {
-	const isEventInput = document.getElementById('toggleDateRange');
-	const repeatInput = document.getElementById('repeatEveryYear');
-	eventData.isEvent = !!isEventInput?.checked;
-	eventData.repeatEveryYear = !!repeatInput?.checked;
-}
-
-function updateScheduleSummary() {
-	const summaryEl = document.getElementById('schedule-summary');
-	if (!summaryEl) return;
-
-	if (!eventData.isEvent) {
-		summaryEl.textContent = 'No schedule set for next message.';
-		return;
-	}
-
-	const { startDate, endDate } = getDateRange();
-	if (!startDate || !endDate) {
-		summaryEl.textContent =
-			'Schedule enabled. Set both start and end before submitting.';
-		return;
-	}
-
-	const repeatText = eventData.repeatEveryYear ? ' (yearly)' : '';
-	summaryEl.textContent = `Scheduled: ${formatDate(startDate)} to ${formatDate(endDate)}${repeatText}`;
-}
-
-function setScheduleRangeToAllDay() {
-	const allDayInput = document.getElementById('schedule-all-day');
-	if (!allDayInput?.checked) return;
-
-	const startEl = document.getElementById('startDateText');
-	const endEl = document.getElementById('endDateText');
-	if (!startEl || !endEl || !startEl.value || !endEl.value) return;
-
-	const startDate = new Date(startEl.value);
-	const endDate = new Date(endEl.value);
-	if (isNaN(startDate) || isNaN(endDate)) return;
-
-	const toLocalInputValue = date => {
-		const pad = n => String(n).padStart(2, '0');
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-			date.getDate(),
-		)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-	};
-
-	startDate.setHours(0, 0, 0, 0);
-	endDate.setHours(23, 59, 0, 0);
-
-	startEl.value = toLocalInputValue(startDate);
-	endEl.value = toLocalInputValue(endDate);
-}
-
-function formatLocalDatetimeInputValue(date) {
-	const pad = n => String(n).padStart(2, '0');
-	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-		date.getDate(),
-	)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function setStartNowIfRequested() {
-	const startNowInput = document.getElementById('schedule-start-now');
-	const startEl = document.getElementById('startDateText');
-	if (!startNowInput?.checked || !startEl) return;
-	startEl.value = formatLocalDatetimeInputValue(new Date());
-}
-
-function setScheduleControlsEnabled(isEnabled) {
-	const ids = [
-		'startDateText',
-		'endDateText',
-		'repeatEveryYear',
-		'schedule-all-day',
-		'schedule-start-now',
-		'schedule-preset-24h',
-		'schedule-preset-7d',
-		'schedule-preset-weekend',
-	];
-
-	ids.forEach(id => {
-		const el = document.getElementById(id);
-		if (!el) return;
-		el.disabled = !isEnabled;
-	});
-}
-
-function applySchedulePreset(preset) {
-	const toggle = document.getElementById('toggleDateRange');
-	const startEl = document.getElementById('startDateText');
-	const endEl = document.getElementById('endDateText');
-	const repeatEl = document.getElementById('repeatEveryYear');
-	if (!toggle || !startEl || !endEl || !repeatEl) return;
-
-	toggle.checked = true;
-	repeatEl.checked = false;
-
-	const now = new Date();
-	let start = new Date(now);
-	let end = new Date(now);
-
-	if (preset === '24h') {
-		end.setHours(end.getHours() + 24);
-	}
-
-	if (preset === '7d') {
-		end.setDate(end.getDate() + 7);
-	}
-
-	if (preset === 'weekend') {
-		const day = now.getDay();
-		const daysUntilSaturday = (6 - day + 7) % 7;
-		start = new Date(now);
-		start.setDate(now.getDate() + daysUntilSaturday);
-		start.setHours(0, 0, 0, 0);
-		end = new Date(start);
-		end.setDate(start.getDate() + 1);
-		end.setHours(23, 59, 0, 0);
-	}
-
-	startEl.value = formatLocalDatetimeInputValue(start);
-	endEl.value = formatLocalDatetimeInputValue(end);
-
-	syncScheduleStateFromInputs();
-	setScheduleControlsEnabled(true);
-	updateScheduleSummary();
-}
-
-function clearScheduleSettings(showToastNotice = true) {
-	const isEventInput = document.getElementById('toggleDateRange');
-	const repeatInput = document.getElementById('repeatEveryYear');
-	const allDayInput = document.getElementById('schedule-all-day');
-	const startEl = document.getElementById('startDateText');
-	const endEl = document.getElementById('endDateText');
-
-	if (isEventInput) isEventInput.checked = false;
-	if (repeatInput) repeatInput.checked = false;
-	if (allDayInput) allDayInput.checked = false;
-	if (startEl) startEl.value = '';
-	if (endEl) endEl.value = '';
-
-	eventData = { ...eventDataDefualt };
-	setScheduleControlsEnabled(false);
-	updateScheduleSummary();
-	if (showToastNotice) showToast('Schedule cleared');
-}
-
 // #endregion
 
 // #region Message Section
-async function deleteEntry(id) {
+async function deleteEntry(id, button) {
 	try {
-		const filteredData = (configData.messages = configData.messages.filter(
-			message => {
-				return message.id != id;
-			},
-		));
-		configData.messages = filteredData;
-		const result = await pushData(configData);
-		if (result.ok) showToast('Deleted message');
-		else showToast(`Delete failed: ${result.errorMessage}`, 'danger');
-		loadData(configData);
+		const index = configData.messages.findIndex(message => message.id == id);
+		if (index === -1) return;
+		const [removed] = configData.messages.splice(index, 1);
+
+		await withBusy(button, async () => {
+			const result = await pushData(configData);
+			if (!result.ok) {
+				configData.messages.splice(index, 0, removed);
+				renderMessages();
+				showToast(`Delete failed: ${result.errorMessage}`, 'danger');
+				return;
+			}
+
+			renderMessages();
+			showToast('Message deleted', 'info', {
+				duration: 6000,
+				actionLabel: 'Undo',
+				onAction: async () => {
+					configData.messages.splice(
+						Math.min(index, configData.messages.length),
+						0,
+						removed,
+					);
+					const undoResult = await pushData(configData);
+					if (!undoResult.ok) {
+						configData.messages.splice(
+							Math.min(index, configData.messages.length - 1),
+							1,
+						);
+						showToast(
+							`Undo failed: ${undoResult.errorMessage}`,
+							'danger',
+						);
+					}
+					renderMessages();
+				},
+			});
+		});
 	} catch (error) {
 		log('error', 'deleteEntry failed', error);
 		showToast('Delete failed', 'danger');
 	}
 }
 
-async function sendEntry(data) {
-	try {
-		const response = await fetch(`${apiBase}/api/send`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(data),
-		});
-		if (response.ok) {
-			showToast('Sent to board');
-		} else {
-			const errorMessage = await readServerError(response);
-			log('error', 'Send failed', { status: response.status, errorMessage });
-			showToast(`Send failed: ${errorMessage}`, 'danger');
+async function sendEntry(data, button) {
+	await withBusy(button, async () => {
+		try {
+			const response = await fetch(`${apiBase}/api/send`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(data),
+			});
+			if (response.ok) {
+				showToast('Sent to board');
+			} else {
+				const errorMessage = await readServerError(response);
+				log('error', 'Send failed', { status: response.status, errorMessage });
+				showToast(`Send failed: ${errorMessage}`, 'danger');
+			}
+		} catch (err) {
+			log('error', 'Send failed', err);
+			showToast(`Send failed: ${err?.message || err}`, 'danger');
 		}
-	} catch (err) {
-		log('error', 'Send failed', err);
-		showToast(`Send failed: ${err?.message || err}`, 'danger');
-	}
-}
-
-function formatDate(dateStr) {
-	if (!dateStr) return '';
-	const date = new Date(dateStr);
-	if (isNaN(date)) return dateStr;
-	return date.toLocaleString('en-US', { hour12: true });
+	});
 }
 
 function createCard(messageData) {
@@ -621,7 +424,7 @@ function createCard(messageData) {
 		: 'card';
 
 	const cardContent = document.createElement('div');
-	cardContent.className = 'card-content container is-fluid ';
+	cardContent.className = 'card-content container is-fluid';
 	cardContent.style.margin = '10px';
 
 	const text = document.createElement('p');
@@ -656,18 +459,22 @@ function createCard(messageData) {
 	const footer = document.createElement('footer');
 	footer.className = 'card-footer';
 
-	const del = document.createElement('a');
-	del.className = 'card-footer-item has-background-danger has-text-white';
+	const del = document.createElement('button');
+	del.type = 'button';
+	del.className =
+		'button card-footer-item has-background-danger has-text-white';
 	del.innerText = 'Delete';
 	del.onclick = function () {
-		deleteEntry(messageData.id);
+		deleteEntry(messageData.id, del);
 	};
 
-	const send = document.createElement('a');
-	send.className = 'card-footer-item has-background-primary has-text-white';
+	const send = document.createElement('button');
+	send.type = 'button';
+	send.className =
+		'button card-footer-item has-background-primary has-text-white';
 	send.innerText = 'Send to Board';
 	send.onclick = function () {
-		sendEntry(messageData);
+		sendEntry(messageData, send);
 	};
 
 	footer.append(send, del);
@@ -676,157 +483,77 @@ function createCard(messageData) {
 }
 // #endregion
 
-// #region DOM
-
-async function setApiKey() {
-	const apiKey = await window.prompt('Please enter API key');
-	if (!apiKey) return;
-	configData.apiWriteKey = apiKey.trim();
-	configData.isValidKey = true;
-	const result = await pushData(configData);
-	if (result.ok) {
-		window.location.reload();
-	} else {
-		showToast(`Failed to save API key: ${result.errorMessage}`, 'danger');
+// #region API key
+function openApiKeyModal() {
+	const input = document.getElementById('api-key-input');
+	if (input) {
+		input.value = '';
+		input.type = 'password';
 	}
+	const toggle = document.getElementById('api-key-toggle-btn');
+	if (toggle) {
+		toggle.textContent = 'Show';
+		toggle.setAttribute('aria-pressed', 'false');
+	}
+	openModal('api-key-modal');
+	const nameInput = document.getElementById('api-key-input');
+	if (nameInput) nameInput.focus();
 }
 
-async function resetApiKey() {
-	configData.apiWriteKey = '';
-	configData.isValidKey = false;
-	const result = await pushData(configData);
-	if (result.ok) {
-		showToast('API key reset');
-		document.getElementById('api-key-warning').style.display = 'block';
-		setTimeout(() => setApiKey(), 250);
-	} else {
-		showToast(`Failed to reset API key: ${result.errorMessage}`, 'danger');
-	}
+function closeApiKeyModal() {
+	closeModal('api-key-modal');
 }
 
-function showCustomAlert(message) {
-	const notification = document.createElement('div');
-	notification.className = 'notification is-danger';
-	notification.style.position = 'fixed';
-	notification.style.top = '20px';
-	notification.style.right = '20px';
-	notification.style.zIndex = '9999';
-	notification.innerHTML = `
-        <button class="delete" onclick="this.parentElement.remove()"></button>
-        ${message}
-    `;
-
-	document.body.appendChild(notification);
-
-	setTimeout(() => {
-		if (notification.parentElement) {
-			notification.remove();
+async function saveApiKey(button) {
+	const input = document.getElementById('api-key-input');
+	const apiKey = (input?.value || '').trim();
+	if (!apiKey) {
+		showToast('Please enter an API key', 'warning');
+		return;
+	}
+	await withBusy(button, async () => {
+		configData.apiWriteKey = apiKey;
+		configData.isValidKey = true;
+		const result = await pushData(configData);
+		if (result.ok) {
+			closeApiKeyModal();
+			document.getElementById('api-key-warning').style.display = 'none';
+			showToast('API key saved');
+		} else {
+			configData.apiWriteKey = undefined;
+			configData.isValidKey = false;
+			showToast(`Failed to save API key: ${result.errorMessage}`, 'danger');
 		}
-	}, 5000);
-}
-
-function showToast(message, type = 'success') {
-	const toast = document.createElement('div');
-	toast.className = `notification is-${type}`;
-	toast.style.position = 'fixed';
-	toast.style.top = '20px';
-	toast.style.right = '20px';
-	toast.style.zIndex = '9999';
-	toast.style.opacity = '0';
-	toast.style.transition = 'opacity 0.2s ease';
-	toast.innerHTML = `
-        <button class="delete" onclick="this.parentElement.remove()"></button>
-        ${message}
-    `;
-
-	document.body.appendChild(toast);
-
-	requestAnimationFrame(() => {
-		toast.style.opacity = '1';
 	});
+}
 
-	setTimeout(() => {
-		if (toast.parentElement) {
-			toast.style.opacity = '0';
-			setTimeout(() => toast.remove(), 200);
+async function resetApiKey(button) {
+	await withBusy(button, async () => {
+		configData.apiWriteKey = '';
+		configData.isValidKey = false;
+		const result = await pushData(configData);
+		if (result.ok) {
+			showToast('API key reset');
+			document.getElementById('api-key-warning').style.display = 'block';
+			openApiKeyModal();
+		} else {
+			showToast(`Failed to reset API key: ${result.errorMessage}`, 'danger');
 		}
-	}, 2500);
+	});
 }
+// #endregion
 
-document.getElementById('legend-toggle-btn').onclick = () =>
-	document.getElementById('legend-modal').classList.add('is-active');
-
-function closeEventModal() {
-	document.getElementById('legend-modal').classList.remove('is-active');
-}
-
+// #region Modals
 function openBirthdayModal() {
-	const modal = document.getElementById('birthday-modal');
-	if (!modal) return;
-	modal.classList.add('is-active');
+	openModal('birthday-modal');
 
 	const nameInput = document.getElementById('birthday-name');
 	if (nameInput) nameInput.focus();
 }
 
 function closeBirthdayModal() {
-	const modal = document.getElementById('birthday-modal');
-	if (!modal) return;
-	modal.classList.remove('is-active');
+	closeModal('birthday-modal');
 }
-
-function openScheduleModal() {
-	const modal = document.getElementById('schedule-modal');
-	if (!modal) return;
-
-	const isEventInput = document.getElementById('toggleDateRange');
-	const repeatInput = document.getElementById('repeatEveryYear');
-	if (isEventInput) isEventInput.checked = eventData.isEvent;
-	if (repeatInput) repeatInput.checked = eventData.repeatEveryYear;
-
-	setScheduleControlsEnabled(eventData.isEvent);
-	modal.classList.add('is-active');
-}
-
-function closeScheduleModal() {
-	const modal = document.getElementById('schedule-modal');
-	if (!modal) return;
-	modal.classList.remove('is-active');
-}
-
-function applyScheduleSettings() {
-	syncScheduleStateFromInputs();
-	setStartNowIfRequested();
-	setScheduleRangeToAllDay();
-
-	if (!eventData.isEvent) {
-		updateScheduleSummary();
-		closeScheduleModal();
-		showToast('Scheduling disabled for next message');
-		return;
-	}
-
-	const { startDate, endDate } = getDateRange();
-	const startVal = startDate ? new Date(startDate) : null;
-	const endVal = endDate ? new Date(endDate) : null;
-	const invalidOrder = startVal && endVal ? endVal < startVal : false;
-
-	if (!startVal || !endVal || (!eventData.repeatEveryYear && invalidOrder)) {
-		showToast('Please enter a valid schedule range', 'warning');
-		return;
-	}
-
-	eventData.startDate = startDate;
-	eventData.endDate = endDate;
-	updateScheduleSummary();
-	closeScheduleModal();
-	showToast('Schedule applied');
-}
-
-window.openBirthdayModal = openBirthdayModal;
-window.closeBirthdayModal = closeBirthdayModal;
-window.openScheduleModal = openScheduleModal;
-window.closeScheduleModal = closeScheduleModal;
 
 function clearBirthdayForm() {
 	const ids = [
@@ -847,7 +574,7 @@ function clearBirthdayForm() {
 	if (daysAheadInput) daysAheadInput.value = '30';
 }
 
-async function addBirthdayMessage() {
+async function addBirthdayMessage(button) {
 	if (!configData || !Array.isArray(configData.messages)) {
 		showToast('Still loading... try again in a second', 'warning');
 		return;
@@ -908,24 +635,36 @@ async function addBirthdayMessage() {
 		eventData: { ...eventDataDefualt },
 	});
 
-	const result = await pushData(configData);
-	if (result.ok) {
-		clearBirthdayForm();
-		closeBirthdayModal();
-		sessionStorage.setItem(
-			'pendingToast',
-			JSON.stringify({ message: 'Birthday message added', type: 'success' }),
-		);
-		window.location.reload();
-	} else {
-		showToast(`Save failed: ${result.errorMessage}`, 'danger');
-	}
+	await withBusy(button, async () => {
+		const result = await pushData(configData);
+		if (result.ok) {
+			clearBirthdayForm();
+			closeBirthdayModal();
+			renderMessages();
+			showToast('Birthday message added');
+		} else {
+			configData.messages.pop();
+			showToast(`Save failed: ${result.errorMessage}`, 'danger');
+		}
+	});
 }
+// #endregion
+
+document.getElementById('legend-toggle-btn').onclick = () =>
+	openModal('legend-modal');
 
 document.addEventListener('DOMContentLoaded', () => {
 	updateScheduleSummary();
 	consumePendingToast();
 	updateTextLength();
+
+	const submitGridBtn = document.getElementById('submit-grid-btn');
+	submitGridBtn.onclick = () => withBusy(submitGridBtn, () => submitData('grid'));
+
+	document.getElementById('clear-grid-btn').onclick = () => clearGrid();
+
+	const submitTextBtn = document.getElementById('submit-text-btn');
+	submitTextBtn.onclick = () => withBusy(submitTextBtn, () => submitData('text'));
 
 	const textInput = document.getElementById('textData');
 	if (textInput) {
@@ -972,7 +711,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	const birthdaySaveBtn = document.getElementById('birthday-save-btn');
 	if (birthdaySaveBtn) {
-		birthdaySaveBtn.addEventListener('click', addBirthdayMessage);
+		birthdaySaveBtn.addEventListener('click', () =>
+			addBirthdayMessage(birthdaySaveBtn),
+		);
 	}
 
 	const scheduleBtn = document.getElementById('schedule-btn');
@@ -1006,6 +747,65 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (scheduleClearBtn) {
 		scheduleClearBtn.addEventListener('click', () =>
 			clearScheduleSettings(true),
+		);
+	}
+
+	const legendModalBg = document.getElementById('legend-modal-bg');
+	if (legendModalBg) {
+		legendModalBg.addEventListener('click', () => closeModal('legend-modal'));
+	}
+
+	const legendCloseBtn = document.getElementById('legend-close-btn');
+	if (legendCloseBtn) {
+		legendCloseBtn.addEventListener('click', () => closeModal('legend-modal'));
+	}
+
+	const apiKeyBannerBtn = document.getElementById('api-key-banner-btn');
+	if (apiKeyBannerBtn) {
+		apiKeyBannerBtn.addEventListener('click', openApiKeyModal);
+	}
+
+	const apiKeyModalBg = document.getElementById('api-key-modal-bg');
+	if (apiKeyModalBg) {
+		apiKeyModalBg.addEventListener('click', closeApiKeyModal);
+	}
+
+	const apiKeyCloseHeadBtn = document.getElementById('api-key-close-head-btn');
+	if (apiKeyCloseHeadBtn) {
+		apiKeyCloseHeadBtn.addEventListener('click', closeApiKeyModal);
+	}
+
+	const apiKeyCancelBtn = document.getElementById('api-key-cancel-btn');
+	if (apiKeyCancelBtn) {
+		apiKeyCancelBtn.addEventListener('click', closeApiKeyModal);
+	}
+
+	const apiKeyInput = document.getElementById('api-key-input');
+	const apiKeyToggleBtn = document.getElementById('api-key-toggle-btn');
+	if (apiKeyInput && apiKeyToggleBtn) {
+		apiKeyToggleBtn.addEventListener('click', () => {
+			const shown = apiKeyInput.type === 'text';
+			apiKeyInput.type = shown ? 'password' : 'text';
+			apiKeyToggleBtn.textContent = shown ? 'Show' : 'Hide';
+			apiKeyToggleBtn.setAttribute('aria-pressed', String(!shown));
+		});
+		apiKeyInput.addEventListener('keydown', evt => {
+			if (evt.key === 'Enter') {
+				evt.preventDefault();
+				apiKeySaveBtn.click();
+			}
+		});
+	}
+
+	const apiKeySaveBtn = document.getElementById('api-key-save-btn');
+	if (apiKeySaveBtn) {
+		apiKeySaveBtn.addEventListener('click', () => saveApiKey(apiKeySaveBtn));
+	}
+
+	const resetApiKeyBtn = document.getElementById('reset-api-key-btn');
+	if (resetApiKeyBtn) {
+		resetApiKeyBtn.addEventListener('click', () =>
+			resetApiKey(resetApiKeyBtn),
 		);
 	}
 
@@ -1060,15 +860,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	setScheduleControlsEnabled(eventData.isEvent);
 });
-
-document.addEventListener('click', evt => {
-	const addBirthdayBtn = evt.target.closest('#add-birthday-btn');
-	if (!addBirthdayBtn) return;
-	evt.preventDefault();
-	openBirthdayModal();
-});
-
-// #endregion
 
 function main() {
 	registerServiceWorker();

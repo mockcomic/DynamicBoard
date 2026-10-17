@@ -1,11 +1,14 @@
-const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v7';
-const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v7';
+const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v12';
+const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v12';
 const APP_SHELL_FILES = [
 	'/',
 	'/index.html',
 	'/manifest.json',
 	'/css/styles.css',
 	'/js/app.js',
+	'/js/ui.js',
+	'/js/grid.js',
+	'/js/schedule.js',
 	'/CharCode.json',
 	'/logo.png',
 	'/icons/192.png',

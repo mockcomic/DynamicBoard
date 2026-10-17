@@ -19,6 +19,7 @@
 .env.test.local
 .env.production.local
 images
+.npm-cache
 
 
 *.tar
@@ -30,3 +31,7 @@ server/config.json
 /config.json
 release/config.json
 /release
+
+# transient config files from test runs
+tests/.api-test-*.json
+tests/.config-test-*.json
