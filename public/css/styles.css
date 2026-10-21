@@ -71,11 +71,14 @@ body {
 	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Mobile: centered stack like the old box header, so nothing crowds or clips. */
 .app-header-row {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	justify-content: space-between;
-	gap: 0.75rem;
+	justify-content: center;
+	text-align: center;
+	gap: 0.5rem;
 }
 
 .app-header-text {
@@ -84,6 +87,16 @@ body {
 
 .app-header-text .title {
 	overflow-wrap: anywhere;
+	font-size: clamp(1.25rem, 6.5vw, 1.5rem);
+	line-height: 1.15;
+}
+
+.app-header-text .subtitle {
+	overflow-wrap: anywhere;
+	/* Bulma's .subtitle carries margin-top:-1.25rem, which pulled the tagline
+	   up on top of the title. Reset it and give explicit breathing room. */
+	margin-top: 0.35rem !important;
+	margin-bottom: 0;
 }
 
 /* ---- Toasts ---- */
@@ -129,8 +142,9 @@ body {
 }
 
 /* ---- Grid (Vestaboard 22x6 preview) ----
-	 Mobile first: keep cells a usable fixed size and let the strip scroll
-	 horizontally (as before the redesign). Desktop widens it to fill. */
+	 Mobile first: shrink the whole board to fit the phone width (as on the old
+	 main layout) before falling back to a fixed-size scrollable strip. Desktop
+	 widens it to fill. */
 
 .grid-viewport {
 	overflow-x: auto;
@@ -143,12 +157,13 @@ body {
 	grid-template-columns: repeat(22, minmax(0, 1fr));
 	grid-template-rows: repeat(6, minmax(0, 1fr));
 	gap: 1px;
-	width: 440px; /* ~18px cells like the original design */
+	width: min(440px, calc(100vw - 68px)); /* fits inside the section padding on phones, ~18px cells on desktop */
 	aspect-ratio: 22 / 6;
 	margin: 10px auto 0;
 	background: #1a1a1a;
 	border: 12px solid #000;
 	border-radius: 8px;
+	box-sizing: border-box;
 }
 
 .grid-item {
@@ -222,6 +237,13 @@ body {
 /* ---- Larger screens ---- */
 
 @media (min-width: 769px) {
+	.app-header-row {
+		flex-direction: row;
+		justify-content: space-between;
+		text-align: left;
+		gap: 0.75rem;
+	}
+
 	.grid-section {
 		padding-left: 1.5rem;
 		padding-right: 1.5rem;
