@@ -40,8 +40,12 @@ test.afterEach(() => {
 	global.fetch = originalFetch;
 	__resetStateForTests();
 	fs.rmSync(tmpConfig, { force: true });
+	// Only clean OUR leftovers: test files run in parallel processes and
+	// must not delete each other's in-flight .<pid> temp files.
 	for (const f of fs.readdirSync(__dirname)) {
-		if (f.includes('.corrupt-') || f.endsWith('.tmp')) {
+		const ours =
+			f.includes(`.${process.pid}.`) || f.includes(`durable-test-${process.pid}`);
+		if (ours && (f.endsWith('.tmp') || f.includes('.corrupt-'))) {
 			fs.rmSync(path.join(__dirname, f), { force: true });
 		}
 	}
