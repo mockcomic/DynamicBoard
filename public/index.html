@@ -189,6 +189,66 @@
 						</div>
 					</div>
 				</div>
+
+				<!-- Board connection: cloud vs local LAN -->
+				<div class="box" id="connection-box">
+					<p class="title is-6 mb-3">Board Connection</p>
+					<div class="field">
+						<div class="control">
+							<label class="radio">
+								<input type="radio" name="transport" id="transport-cloud" value="cloud" />
+								Vestaboard Cloud
+							</label>
+							<label class="radio ml-4">
+								<input type="radio" name="transport" id="transport-local" value="local" />
+								Local network (no cloud)
+							</label>
+						</div>
+					</div>
+					<div id="local-board-controls" style="display:none">
+						<div class="field has-addons">
+							<div class="control is-expanded">
+								<input
+									class="input is-small"
+									id="local-board-address"
+									type="text"
+									placeholder="Board IP or vestaboard.local"
+									autocomplete="off"
+									aria-label="Board address"
+								/>
+							</div>
+							<div class="control">
+								<button class="button is-small is-info" id="discover-btn" type="button">
+									Scan for boards
+								</button>
+							</div>
+						</div>
+						<div id="discover-results" class="mb-2" role="status"></div>
+						<div id="local-enable-row" class="field has-addons" style="display:none">
+							<div class="control is-expanded">
+								<input
+									class="input is-small"
+									id="local-enable-token"
+									type="password"
+									placeholder="Local API enablement token (from Vestaboard email)"
+									autocomplete="off"
+									aria-label="Local API enablement token"
+								/>
+							</div>
+							<div class="control">
+								<button class="button is-small is-primary" id="local-enable-btn" type="button">
+									Enable
+								</button>
+							</div>
+						</div>
+						<p class="help" id="local-board-status"></p>
+						<p class="help">
+							Scans your network for Vestaboards (port 7000). The Local API
+							needs a one-time enablement token from Vestaboard:
+							docs.vestaboard.com → Local API. The key stays on this server.
+						</p>
+					</div>
+				</div>
 			</div>
 		</section>
 

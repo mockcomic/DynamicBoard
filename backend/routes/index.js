@@ -22,6 +22,8 @@ const {
 	sendToVestaboard,
 	checkVariable,
 	notifyConfigChanged,
+	discoverLocalBoards,
+	enableLocalApi,
 } = require('./controller');
 
 const INDEX_PATH = path.join(__dirname, '..', '..', 'public', 'index.html');
@@ -86,16 +88,36 @@ router.post('/api/send', async (req, res) => {
 			let error;
 			if (reason === 'missing_api_key') {
 				error = 'Missing API key';
+			} else if (reason === 'no_local_board') {
+				error = 'No board selected — scan for boards in Settings';
+			} else if (reason === 'missing_local_key') {
+				error = 'Board is missing its local key — enable the Local API in Settings';
+			} else if (reason === 'local_api_not_enabled') {
+				error = 'Local API is not enabled on this board yet — enter your enablement token in Settings';
+			} else if (reason === 'bad_local_key') {
+				error = 'Local API key was rejected by the board';
+			} else if (reason === 'local_unreachable') {
+				error = 'Could not reach the board on the local network';
 			} else if (reason === 'invalid_grid_payload') {
 				error = 'Saved grid message is malformed';
 			} else if (reason === 'network_error') {
 				error = 'Could not reach the Vestaboard service';
 			} else if (status === 403) {
 				error = 'Invalid API key';
+			} else if (reason?.startsWith?.('Unsupported characters')) {
+				error = reason;
 			} else {
 				error = 'Failed to send to Vestaboard';
 			}
-			return { status: reason === 'missing_api_key' ? 400 : status, error };
+			return {
+				status:
+					reason === 'missing_api_key' ||
+					reason === 'no_local_board' ||
+					reason === 'missing_local_key'
+						? 400
+						: status,
+				error,
+			};
 		};
 
 		if (type === 'grid') {
@@ -134,6 +156,76 @@ router.post('/api/send', async (req, res) => {
 	} catch (err) {
 		logError('POST /api/send failed', err);
 		return res.status(500).json({ error: 'Server error' });
+	}
+});
+
+// LAN discovery: parallel probe of :7000 across the given subnet prefix,
+// classified by the board's Server header (AirTunes noise is filtered out).
+router.post('/api/discover', async (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
+	let subnet = String(req.body?.subnet || '').trim();
+	if (!subnet) {
+		// Default to the caller's /24: the server and its users share the LAN.
+		const ip = String(req.ip || '').replace('::ffff:', '');
+		const parts = ip.split('.');
+		if (parts.length === 4) subnet = parts.slice(0, 3).join('.');
+	}
+	try {
+		const result = await discoverLocalBoards(subnet);
+		res.status(200).json(result);
+	} catch (err) {
+		if (err.statusCode === 400) {
+			return res.status(400).json({ error: err.message });
+		}
+		logError('POST /api/discover failed', err);
+		res.status(500).json({ error: 'Discovery scan failed' });
+	}
+});
+
+// One-time Local API enablement: exchanges the emailed token for the
+// board's permanent local key. The key is returned exactly once, straight
+// to this caller — it gets stored server-side and never echoed again.
+router.post('/api/local/enable', async (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
+	const { address, token } = req.body || {};
+	if (!address || !token) {
+		return res.status(400).json({ error: 'Missing address or token' });
+	}
+	try {
+		const result = await enableLocalApi(address, String(token).trim());
+		if (result.status !== 200) {
+			let detail = `HTTP ${result.status}`;
+			try {
+				detail = JSON.parse(result.body)?.message || detail;
+			} catch {}
+			return res
+				.status(result.status === 403 ? 403 : 502)
+				.json({ error: `Board rejected the token: ${detail}` });
+		}
+		let apiKey = null;
+		let message = '';
+		try {
+			const parsed = JSON.parse(result.body);
+			apiKey = parsed.apiKey || null;
+			message = parsed.message || '';
+		} catch {}
+		if (!apiKey) {
+			return res.status(502).json({ error: 'Board enabled the API but returned no key' });
+		}
+		await withConfigLock(async () => {
+			const existing = await readConfig();
+			existing.localBoard = {
+				address: String(address).trim().toLowerCase(),
+				apiKey,
+			};
+			await writeConfig(existing);
+		});
+		notifyConfigChanged();
+		logInfo('Local API enabled', { address });
+		res.status(200).json({ ok: true, message });
+	} catch (err) {
+		logError('POST /api/local/enable failed', err);
+		res.status(502).json({ error: 'Could not reach the board to enable the Local API' });
 	}
 });
 

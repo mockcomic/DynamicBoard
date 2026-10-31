@@ -27,6 +27,10 @@ const DEFAULT_CONFIG = Object.freeze({
 	isValidKey: null,
 	timezone: null,
 	messages: [],
+	// 'cloud' posts via rw.vestaboard.com; 'local' talks to the board's
+	// Local API on port 7000 (no internet round-trip).
+	transport: 'cloud',
+	localBoard: { address: null, apiKey: null },
 });
 
 function cloneDefaultConfig() {
@@ -200,6 +204,54 @@ function sanitizeConfig(input, existing) {
 		throw validationError('timezone must be a string or null');
 	}
 
+	// transport
+	let transport = base.transport ?? 'cloud';
+	if (source.transport !== undefined) {
+		if (source.transport !== 'cloud' && source.transport !== 'local') {
+			throw validationError('transport must be "cloud" or "local"');
+		}
+		transport = source.transport;
+	}
+
+	// localBoard: {address, apiKey}. apiKey is a secret like the cloud key:
+	// absent/null keeps the stored value, '' clears it, redacted in GET.
+	let localBoard = {
+		address: base.localBoard?.address ?? null,
+		apiKey: base.localBoard?.apiKey ?? null,
+	};
+	if (source.localBoard !== undefined) {
+		const src = source.localBoard;
+		if (!src || typeof src !== 'object' || Array.isArray(src)) {
+			throw validationError('localBoard must be an object');
+		}
+		if (src.address === undefined) {
+			// keep stored address
+		} else if (typeof src.address === 'string') {
+			const a = src.address.trim().toLowerCase();
+			if (!a) localBoard.address = null;
+			else if (
+				!/^(\d{1,3}(\.\d{1,3}){3}|[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)*|[a-f0-9:]+(\.local)?)$/i.test(
+					a,
+				)
+			) {
+				throw validationError('localBoard.address is not a valid IP or hostname');
+			} else {
+				localBoard.address = a;
+			}
+		} else if (src.address === null) {
+			localBoard.address = null;
+		} else {
+			throw validationError('localBoard.address must be a string or null');
+		}
+		if (src.apiKey === null || src.apiKey === '') {
+			localBoard.apiKey = null;
+		} else if (typeof src.apiKey === 'string') {
+			localBoard.apiKey = src.apiKey.trim() || null;
+		} else if (src.apiKey !== undefined) {
+			throw validationError('localBoard.apiKey must be a string');
+		}
+	}
+
 	// messages
 	let messages = base.messages;
 	if (source.messages !== undefined) {
@@ -220,6 +272,8 @@ function sanitizeConfig(input, existing) {
 		apiWriteKey,
 		isValidKey,
 		timezone,
+		transport,
+		localBoard,
 		messages,
 	};
 }
@@ -232,6 +286,12 @@ function toPublicConfig(config) {
 		timer: config.timer,
 		isValidKey: config.isValidKey ?? null,
 		timezone: config.timezone ?? null,
+		transport: config.transport ?? 'cloud',
+		// Local key is a secret too: clients see only whether one is set.
+		localBoard: {
+			address: config.localBoard?.address ?? null,
+			hasApiKey: Boolean(config.localBoard?.apiKey),
+		},
 		hasApiKey: Boolean(config.apiWriteKey),
 		messages: Array.isArray(config.messages) ? config.messages : [],
 	};

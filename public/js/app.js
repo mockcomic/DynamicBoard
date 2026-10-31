@@ -280,10 +280,197 @@ async function getData() {
 function checkConfig(cfg) {
 	// GET /api redacts the key; the client sees hasApiKey instead of apiWriteKey.
 	const warning = document.getElementById('api-key-warning');
-	if (!cfg.hasApiKey || cfg.isValidKey === false) {
-		warning.style.display = 'block';
+	const localMode = cfg.transport === 'local';
+	if (localMode) {
+		// In local mode the cloud key is irrelevant: warn only when the
+		// board or its local key is missing.
+		warning.style.display =
+			!cfg.localBoard?.address || !cfg.localBoard?.hasApiKey ? 'block' : 'none';
 	} else {
-		warning.style.display = 'none';
+		warning.style.display = !cfg.hasApiKey || cfg.isValidKey === false ? 'block' : 'none';
+	}
+	renderConnectionBox(cfg);
+}
+
+// #region Board connection (cloud / local LAN)
+let discoverState = { scanning: false, boards: [] };
+
+function renderConnectionBox(cfg) {
+	const cloudRadio = document.getElementById('transport-cloud');
+	const localRadio = document.getElementById('transport-local');
+	const controls = document.getElementById('local-board-controls');
+	const addrInput = document.getElementById('local-board-address');
+	const statusEl = document.getElementById('local-board-status');
+	if (!cloudRadio || !localRadio || !controls) return;
+	const transport = cfg.transport === 'local' ? 'local' : 'cloud';
+	cloudRadio.checked = transport === 'cloud';
+	localRadio.checked = transport === 'local';
+	controls.style.display = transport === 'local' ? '' : 'none';
+	if (document.activeElement !== addrInput) {
+		addrInput.value = cfg.localBoard?.address || '';
+	}
+	const hasBoard = Boolean(cfg.localBoard?.address);
+	const hasKey = Boolean(cfg.localBoard?.hasApiKey);
+	statusEl.textContent = !hasBoard
+		? 'No board selected — use Scan for boards, then Enable with your token.'
+		: !hasKey
+			? `Board ${cfg.localBoard.address} found, but its Local API is not enabled yet. Enter the token Vestaboard emailed you, then press Enable.`
+			: `Connected directly to ${cfg.localBoard.address}. Messages skip the cloud entirely.`;
+	document.getElementById('local-enable-row').style.display =
+		hasBoard && !hasKey ? '' : 'none';
+}
+
+function renderDiscoverResults() {
+	const box = document.getElementById('discover-results');
+	if (!box) return;
+	box.replaceChildren();
+	if (discoverState.scanning) {
+		const p = document.createElement('p');
+		p.className = 'help is-info';
+		p.textContent = 'Scanning the network…';
+		box.appendChild(p);
+		return;
+	}
+	if (!discoverState.boards.length) {
+		const p = document.createElement('p');
+		p.className = 'help';
+		p.textContent = 'No Vestaboards found on this network.';
+		box.appendChild(p);
+		return;
+	}
+	for (const b of discoverState.boards) {
+		const row = document.createElement('div');
+		row.className = 'field has-addons mb-2';
+		const info = document.createElement('div');
+		info.className = 'control is-expanded';
+		const label = document.createElement('span');
+		label.className = 'button is-small is-static is-fullwidth';
+		label.textContent = `${b.address} — firmware ${b.firmware || '?'}`;
+		info.appendChild(label);
+		const pick = document.createElement('div');
+		pick.className = 'control';
+		const btn = document.createElement('button');
+		btn.className = 'button is-small is-primary';
+		btn.type = 'button';
+		btn.textContent = 'Use this board';
+		btn.onclick = () => selectBoard(b.address);
+		pick.appendChild(btn);
+		row.append(info, pick);
+		box.appendChild(row);
+	}
+}
+
+async function selectBoard(address) {
+	const previous = JSON.parse(JSON.stringify(configData.localBoard || {}));
+	configData.localBoard = { address, apiKey: undefined };
+	const result = await pushData(configData);
+	if (result.ok) {
+		configData.localBoard = { ...previous, address };
+		await getData();
+		showToast(`Board set to ${address}`);
+	} else {
+		configData.localBoard = previous;
+		showToast(`Failed to select board: ${result.errorMessage}`, 'danger');
+	}
+}
+
+async function scanForBoards(button) {
+	if (discoverState.scanning) return;
+	discoverState.scanning = true;
+	renderDiscoverResults();
+	await withBusy(button, async () => {
+		try {
+			const res = await fetch(`${apiBase}/api/discover`, {
+				headers: { 'Content-Type': 'application/json' },
+				method: 'POST',
+				body: JSON.stringify({}),
+			});
+			const body = await res.json();
+			if (!res.ok) {
+				showToast(`Scan failed: ${body.error || res.status}`, 'danger');
+			} else {
+				discoverState.boards = body.boards || [];
+				if (discoverState.boards.length === 1) {
+					await selectBoard(discoverState.boards[0].address);
+				}
+			}
+		} catch (err) {
+			showToast(`Scan failed: ${err?.message || err}`, 'danger');
+		} finally {
+			discoverState.scanning = false;
+			renderDiscoverResults();
+		}
+	});
+}
+
+async function enableLocalBoard(button) {
+	const tokenInput = document.getElementById('local-enable-token');
+	const token = (tokenInput?.value || '').trim();
+	const address = configData.localBoard?.address;
+	if (!address) {
+		showToast('Select a board first (scan or type its address)', 'warning');
+		return;
+	}
+	if (!token) {
+		showToast('Paste the enablement token from the Vestaboard email', 'warning');
+		return;
+	}
+	await withBusy(button, async () => {
+		try {
+			const res = await fetch(`${apiBase}/api/local/enable`, {
+				headers: { 'Content-Type': 'application/json' },
+				method: 'POST',
+				body: JSON.stringify({ address, token }),
+			});
+			const body = await res.json();
+			if (!res.ok) {
+				showToast(body.error || `Enable failed (${res.status})`, 'danger');
+				return;
+			}
+			tokenInput.value = '';
+			await getData();
+			showToast('Local API enabled — board key saved');
+		} catch (err) {
+			showToast(`Enable failed: ${err?.message || err}`, 'danger');
+		}
+	});
+}
+
+function wireConnectionBox() {
+	for (const [id, transport] of [
+		['transport-cloud', 'cloud'],
+		['transport-local', 'local'],
+	]) {
+		const el = document.getElementById(id);
+		if (!el) continue;
+		el.onchange = async () => {
+			const previous = configData.transport;
+			configData.transport = transport;
+			const result = await pushData(configData);
+			if (result.ok) {
+				await getData();
+				showToast(
+					transport === 'local'
+						? 'Sending directly to the board on your LAN'
+						: 'Sending via Vestaboard Cloud',
+				);
+			} else {
+				configData.transport = previous;
+				renderConnectionBox(configData);
+				showToast(`Failed to switch: ${result.errorMessage}`, 'danger');
+			}
+		};
+	}
+	document.getElementById('discover-btn').onclick = () =>
+		scanForBoards(document.getElementById('discover-btn'));
+	document.getElementById('local-enable-btn').onclick = () =>
+		enableLocalBoard(document.getElementById('local-enable-btn'));
+	const addrInput = document.getElementById('local-board-address');
+	if (addrInput) {
+		addrInput.onchange = () => {
+			const value = addrInput.value.trim();
+			if (value && value !== configData.localBoard?.address) selectBoard(value);
+		};
 	}
 }
 
@@ -794,7 +981,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	const apiKeyBannerBtn = document.getElementById('api-key-banner-btn');
 	if (apiKeyBannerBtn) {
-		apiKeyBannerBtn.addEventListener('click', openApiKeyModal);
+		apiKeyBannerBtn.addEventListener('click', () => {
+			// Local mode: the fix lives in the Board Connection box, not the
+			// cloud-key modal.
+			if (configData.transport === 'local') {
+				document
+					.getElementById('connection-box')
+					?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				return;
+			}
+			openApiKeyModal();
+		});
 	}
 
 	const apiKeyModalBg = document.getElementById('api-key-modal-bg');
@@ -896,6 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function main() {
 	registerServiceWorker();
 	createGrid();
+	wireConnectionBox();
 	getData();
 }
 

@@ -418,8 +418,53 @@ function checkVariable(string, context = {}) {
 	return output;
 }
 
+const {
+	discover: discoverLocalBoards,
+	textToVbml,
+	sendGridToLocal,
+	enableLocalApi,
+} = require('../services/vestaboard-local');
+
+// Local-API branch of sendToVestaboard: same return contract
+// ({ok, status, statusText}) so rotation semantics (skip on 4xx, retry on
+// transient) apply identically to both transports.
+async function sendLocally(data, dataType) {
+	const address = config?.localBoard?.address;
+	const apiKey = config?.localBoard?.apiKey;
+	if (!address) {
+		logWarn('Local transport selected but no board address configured');
+		return { ok: false, status: 400, statusText: 'no_local_board' };
+	}
+	if (!apiKey) {
+		logWarn('Local transport selected but the board key is missing');
+		return { ok: false, status: 400, statusText: 'missing_local_key' };
+	}
+	let grid;
+	if (dataType === 'grid') {
+		try {
+			grid = typeof data === 'string' ? JSON.parse(data) : data;
+		} catch {
+			return { ok: false, status: 400, statusText: 'invalid_grid_payload' };
+		}
+	} else {
+		try {
+			// Render the same codex the on-screen grid enforces; the cloud
+			// API would do this server-side at Vestaboard, here we do it.
+			({ grid } = textToVbml(String(data)));
+		} catch (err) {
+			logWarn('Local text conversion failed', { message: err.message });
+			return { ok: false, status: err.statusCode || 400, statusText: err.message };
+		}
+	}
+	return sendGridToLocal(address, apiKey, grid);
+}
+
 async function sendToVestaboard(data, dataType) {
 	logInfo('Sending to Vestaboard', { type: dataType });
+	const transport = config?.transport === 'local' ? 'local' : 'cloud';
+	if (transport === 'local') {
+		return sendLocally(data, dataType);
+	}
 	if (!config?.apiWriteKey) {
 		logWarn('Missing apiWriteKey, cannot send to Vestaboard');
 		return { ok: false, status: 400, statusText: 'missing_api_key' };
@@ -777,6 +822,9 @@ module.exports = {
 	checkVariable,
 	sendToVestaboard,
 	notifyConfigChanged,
+	discoverLocalBoards,
+	enableLocalApi,
+	textToVbml,
 	__processMessagesForTests: processMessages,
 	__setConfigForTests,
 	__getConfigForTests,
