@@ -13,7 +13,7 @@ FLAP_TOP = (74, 81, 94)
 FLAP_BOT = (12, 13, 16)
 SEAM = (0, 0, 0)
 HINGE = (140, 130, 110)
-ORANGE = (69, 92, 233)    # single accent
+ORANGE = (196, 56, 46)    # single accent
 
 
 def gen(S, out):
