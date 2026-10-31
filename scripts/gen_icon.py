@@ -8,12 +8,12 @@ Usage: python3 gen_icon.py SIZE OUT.png"""
 import sys
 from PIL import Image, ImageDraw
 
-BG = (32, 35, 41)          # squircle (matches app theme-color family)
-FLAP_TOP = (44, 48, 55)    # upper flap, lit
-FLAP_BOT = (26, 29, 34)    # lower flap, shaded
-SEAM = (8, 9, 11)          # seam shadow
-HINGE = (98, 105, 116)     # pivot pins
-ORANGE = (235, 100, 40)    # single accent
+BG = (22, 24, 29)
+FLAP_TOP = (62, 68, 78)
+FLAP_BOT = (17, 19, 23)
+SEAM = (0, 0, 0)
+HINGE = (150, 158, 170)
+ORANGE = (255, 116, 30)    # single accent
 
 
 def gen(S, out):
