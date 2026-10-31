@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const routes = require('./backend/routes');
 const os = require('os');
-const { logInfo } = require('./backend/utils/logger');
+const { logInfo, logError } = require('./backend/utils/logger');
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 
@@ -38,9 +38,23 @@ app.use(
 	})
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 app.use('/', routes);
+
+// Body-parse failures must not return Express's HTML error page: the PWA
+// toasts raw HTML at the user. Map them to the {error} JSON shape instead.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+	if (err?.type === 'entity.parse.failed') {
+		return res.status(400).json({ error: 'Malformed JSON request body' });
+	}
+	if (err?.type === 'entity.too.large') {
+		return res.status(413).json({ error: 'Request body too large' });
+	}
+	logError('Unhandled request error', err);
+	return res.status(500).json({ error: 'Server error' });
+});
 
 if (require.main === module) {
 	app.listen(port, () => {

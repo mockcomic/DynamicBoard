@@ -2,6 +2,15 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const { logInfo, logWarn, logError } = require('../utils/logger');
+
+// Serialize read-modify-write on config.json so overlapping PUTs can't lose
+// updates or collide on the (now-unique, but still last-writer-wins) rename.
+let writeQueue = Promise.resolve();
+function withConfigLock(fn) {
+	const next = writeQueue.then(fn, fn);
+	writeQueue = next.catch(() => {});
+	return next;
+}
 const {
 	readConfig,
 	writeConfig,
@@ -34,9 +43,11 @@ router.get('/api', async (req, res) => {
 router.put('/api', async (req, res) => {
 	res.setHeader('Cache-Control', 'no-store');
 	try {
-		const existing = await readConfig();
-		const next = sanitizeConfig(req.body, existing);
-		await writeConfig(next);
+		await withConfigLock(async () => {
+			const existing = await readConfig();
+			const next = sanitizeConfig(req.body, existing);
+			await writeConfig(next);
+		});
 		logInfo('PUT /api', { ip: req.ip });
 		// Apply the new config to the rotation loop without waiting for the poll.
 		notifyConfigChanged();
@@ -69,13 +80,22 @@ router.post('/api/send', async (req, res) => {
 	try {
 		const mapVestaboardError = result => {
 			const status = result?.status && result.status > 0 ? result.status : 502;
-			const error =
-				status === 403
-					? 'Invalid API key'
-					: status === 400
-						? 'Missing API key'
-						: 'Failed to send to Vestaboard';
-			return { status, error };
+			// sendToVestaboard reports internal failures as status 0 with a
+			// machine-readable statusText; don't mislabel those as key issues.
+			const reason = result?.statusText;
+			let error;
+			if (reason === 'missing_api_key') {
+				error = 'Missing API key';
+			} else if (reason === 'invalid_grid_payload') {
+				error = 'Saved grid message is malformed';
+			} else if (reason === 'network_error') {
+				error = 'Could not reach the Vestaboard service';
+			} else if (status === 403) {
+				error = 'Invalid API key';
+			} else {
+				error = 'Failed to send to Vestaboard';
+			}
+			return { status: reason === 'missing_api_key' ? 400 : status, error };
 		};
 
 		if (type === 'grid') {

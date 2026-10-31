@@ -20,6 +20,7 @@ const { CONFIG_PATH } = require('../backend/services/config-store');
 const originalFetch = global.fetch;
 const originalWriteFileSync = fs.writeFileSync;
 const originalRenameSync = fs.renameSync;
+const originalChmodSync = fs.chmodSync;
 
 // Deterministic epoch-day helpers (config is pinned to UTC in tests).
 function dayNum(year, month, day) {
@@ -68,6 +69,7 @@ test.afterEach(() => {
 	global.fetch = originalFetch;
 	fs.writeFileSync = originalWriteFileSync;
 	fs.renameSync = originalRenameSync;
+	fs.chmodSync = originalChmodSync;
 	__resetStateForTests();
 });
 
@@ -341,6 +343,7 @@ test('sendToVestaboard marks key invalid and persists config on 403', async () =
 	fs.writeFileSync = (path, value) => {
 		writes.push({ path, value });
 	};
+	fs.chmodSync = () => {};
 	fs.renameSync = (from, to) => {
 		renames.push({ from, to });
 	};
@@ -362,7 +365,7 @@ test('sendToVestaboard marks key invalid and persists config on 403', async () =
 	assert.equal(JSON.parse(writes[0].value).isValidKey, false);
 });
 
-test('sendToVestaboard returns network_error and persists config on fetch failure', async () => {
+test('sendToVestaboard returns network_error without rewriting config on fetch failure', async () => {
 	const writes = [];
 	fs.writeFileSync = (path, value) => {
 		writes.push({ path, value });
@@ -380,5 +383,7 @@ test('sendToVestaboard returns network_error and persists config on fetch failur
 		status: 0,
 		statusText: 'network_error',
 	});
-	assert.equal(writes.length, 1);
+	// A transient failure must not clobber config.json with the in-memory
+	// snapshot (that silently reverted recent UI saves).
+	assert.equal(writes.length, 0);
 });

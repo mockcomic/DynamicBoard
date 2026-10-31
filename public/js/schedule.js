@@ -151,12 +151,16 @@ export function clearScheduleSettings(showToastNotice = true) {
 	const isEventInput = document.getElementById('toggleDateRange');
 	const repeatInput = document.getElementById('repeatEveryYear');
 	const allDayInput = document.getElementById('schedule-all-day');
+	const startNowInput = document.getElementById('schedule-start-now');
 	const startEl = document.getElementById('startDateText');
 	const endEl = document.getElementById('endDateText');
 
 	if (isEventInput) isEventInput.checked = false;
 	if (repeatInput) repeatInput.checked = false;
 	if (allDayInput) allDayInput.checked = false;
+	// Without this, a cleared schedule silently snaps startDate to "now"
+	// on the next Apply because the checkbox stayed checked.
+	if (startNowInput) startNowInput.checked = false;
 	if (startEl) startEl.value = '';
 	if (endEl) endEl.value = '';
 

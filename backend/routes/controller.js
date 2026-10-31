@@ -15,12 +15,29 @@ dayjs.extend(timezonePlugin);
 dayjs.extend(isBetweenPlugin);
 
 const SEND_TIMEOUT_MS = 10000;
+const MIN_TIMER_MS = 1000;
+const MAX_TIMER_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_TIMER_MS = 120000;
 
 let config = null;
 let isLooping = false;
 let runtimeData = null;
 let intervalId = null;
 let lastMsg = null;
+// Supersedes in-flight loop iterations whenever the rotator restarts.
+let loopGeneration = 0;
+// Last loop-relevant state observed by reloadConfig (drives restart checks).
+let lastLoopEnabled = false;
+let lastLoopTimer = null;
+let lastUnreadableConfigLog = 0;
+
+function logWarnThrottled(message) {
+	const now = Date.now();
+	if (now - lastUnreadableConfigLog > 60000) {
+		lastUnreadableConfigLog = now;
+		logWarn(message);
+	}
+}
 
 const TRUE_VALUES = new Set(['true', '1', 'yes', 'y', 'yearly', 'repeat']);
 const FALSE_VALUES = new Set(['false', '0', 'no', 'n']);
@@ -339,6 +356,21 @@ function persistConfig(nextConfig) {
 	}
 }
 
+// Re-read from disk before mutating so controller writes never clobber a
+// recent PUT /api save with a stale in-memory copy (read-modify-write).
+function persistMutation(mutate) {
+	let target;
+	try {
+		target = readConfigSync();
+	} catch {
+		target = config ?? runtimeData;
+	}
+	mutate(target);
+	config = target;
+	runtimeData = target;
+	persistConfig(target);
+}
+
 function loadConfig() {
 	try {
 		ensureConfigSync();
@@ -423,15 +455,21 @@ async function sendToVestaboard(data, dataType) {
 		});
 		if (res.status === 403) {
 			logWarn('Invalid apiWriteKey, isValidKey set to false');
-			config.isValidKey = false;
-			persistConfig(config);
+			persistMutation(target => {
+				target.isValidKey = false;
+			});
+		} else if (res.ok && config && config.isValidKey === false) {
+			// A send that worked proves the key: clear a stale invalid banner.
+			persistMutation(target => {
+				target.isValidKey = true;
+			});
 		}
 		return { ok: res.ok, status: res.status, statusText: res.statusText };
 	} catch (error) {
+		// Transient failure (board offline, DNS hiccup): do NOT rewrite
+		// config.json here — nothing changed and a stale document would
+		// clobber recent UI saves.
 		logError('Error in sendToVestaboard', error);
-		if (config) {
-			persistConfig(config);
-		}
 		return { ok: false, status: 0, statusText: 'network_error' };
 	}
 }
@@ -439,18 +477,17 @@ async function sendToVestaboard(data, dataType) {
 function deleteMessage(id) {
 	if (!Array.isArray(runtimeData?.messages)) return;
 
-	const filteredData = runtimeData.messages.filter(message => {
+	persistMutation(target => {
+		if (!Array.isArray(target.messages)) target.messages = [];
+		const filtered = target.messages.filter(
+			message => String(message.id) !== String(id),
+		);
 		logInfo('Evaluating message for delete', {
-			messageId: message.id,
-			targetId: id,
-			match: message.id == id,
+			messageId: id,
+			removed: filtered.length !== target.messages.length,
 		});
-		return message.id != id;
+		target.messages = filtered;
 	});
-
-	runtimeData.messages = filteredData;
-	config = runtimeData;
-	persistConfig(runtimeData);
 	logInfo('Deleted message from config', { id });
 }
 
@@ -549,8 +586,8 @@ async function processMessages() {
 		if (messageData.eventData?.isEvent === true) {
 			const validMessage = await processEvent(messageData);
 			if (!validMessage) {
-				runtimeData = loadConfig();
-				idx = (idx + 1) % (runtimeData.messages?.length || 1);
+				runtimeData = loadConfig() || runtimeData;
+				idx = (idx + 1) % (runtimeData?.messages?.length || 1);
 				continue;
 			}
 		}
@@ -573,6 +610,21 @@ async function processMessages() {
 		}
 
 		if (result && !result.ok) {
+			// Permanent rejection (4xx other than 429): the board will never
+			// accept this payload, so advance past it instead of stalling the
+			// rotation on one bad message forever.
+			const permanent =
+				result.status >= 400 && result.status < 500 && result.status !== 429;
+			if (permanent) {
+				// next tick starts at idx+1, leaving this bad message behind
+				lastMsg = idx;
+				logWarn('Send permanently rejected; skipping message', {
+					id: messageData.id,
+					status: result.status,
+					statusText: result.statusText,
+				});
+				return;
+			}
 			// Transient failure (offline board, outage, timeout): keep the same
 			// message selected so the next tick retries it instead of skipping.
 			logWarn('Send failed; will retry this message on the next tick', {
@@ -595,14 +647,27 @@ function loopMessages() {
 	if (isLooping) return;
 
 	isLooping = true;
+	const myToken = ++loopGeneration;
 	logInfo('Starting message loop');
 
 	const loop = async function () {
-		await processMessages();
+		try {
+			await processMessages();
+		} catch (error) {
+			// A throw here previously surfaced as an unhandled rejection that
+			// (via isLooping staying true) permanently deadlocked the rotator.
+			logError('Message loop iteration failed', error);
+		}
+
+		// A config reload may have started a newer loop while we awaited;
+		// an orphan reschedules itself no more.
+		if (myToken !== loopGeneration) return;
 
 		if (runtimeData && runtimeData.isEnabled) {
-			// Schedule next loop using the updated timer
-			intervalId = setTimeout(loop, runtimeData.timer);
+			// Schedule next loop using the updated timer, clamped so a
+			// hand-edited config can't spin the loop at ~1ms.
+			const timer = clampTimer(runtimeData.timer);
+			intervalId = setTimeout(loop, timer);
 		} else {
 			isLooping = false;
 			clearTimeout(intervalId);
@@ -613,22 +678,52 @@ function loopMessages() {
 	loop();
 }
 
+function clampTimer(timer) {
+	const num = Number(timer);
+	if (!Number.isFinite(num) || num < MIN_TIMER_MS || num > MAX_TIMER_MS) {
+		logWarn('Config timer out of range; clamping', { timer });
+		if (!Number.isFinite(num)) return DEFAULT_TIMER_MS;
+		return Math.min(Math.max(num, MIN_TIMER_MS), MAX_TIMER_MS);
+	}
+	return num;
+}
+
 // Reload config.json and (re)start the rotation loop when needed. Called both
 // from the file poll below and right after PUT /api writes (via
 // notifyConfigChanged) so changes apply immediately.
 function reloadConfig() {
 	const nextConfig = loadConfig();
-	if (!nextConfig?.apiWriteKey) {
+
+	if (!nextConfig) {
+		// config.json unreadable (corrupt): keep rotating on the last good
+		// config, but don't hammer the log every 5s about the same file.
+		logWarnThrottled('Keeping last config; config.json is unreadable');
 		return;
 	}
 
-	const wasEnabled = runtimeData?.isEnabled;
-	const timerChanged = runtimeData?.timer !== nextConfig.timer;
-
 	runtimeData = nextConfig;
 
-	if (runtimeData.isEnabled && (!wasEnabled || timerChanged)) {
-		logInfo('Updating loop with new timer', { timer: runtimeData.timer });
+	if (!nextConfig.apiWriteKey) {
+		// Keyless: nothing to rotate to. Make sure a running loop is stopped
+		// so the old document isn't retried forever.
+		if (intervalId || isLooping) {
+			loopGeneration++;
+			clearTimeout(intervalId);
+			intervalId = null;
+			isLooping = false;
+			logInfo('No API key configured; message loop stopped');
+		}
+		return;
+	}
+
+	const wasEnabled = lastLoopEnabled;
+	const timerChanged = lastLoopTimer !== nextConfig.timer;
+	lastLoopEnabled = nextConfig.isEnabled;
+	lastLoopTimer = nextConfig.timer;
+
+	if (nextConfig.isEnabled && (!wasEnabled || timerChanged)) {
+		logInfo('Updating loop with new timer', { timer: nextConfig.timer });
+		loopGeneration++; // supersede any in-flight iteration
 		clearTimeout(intervalId);
 		isLooping = false;
 		loopMessages();
@@ -664,6 +759,9 @@ function __resetStateForTests() {
 	runtimeData = null;
 	lastMsg = null;
 	isLooping = false;
+	loopGeneration++;
+	lastLoopEnabled = false;
+	lastLoopTimer = null;
 }
 
 module.exports = {

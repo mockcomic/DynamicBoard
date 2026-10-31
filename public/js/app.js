@@ -38,6 +38,9 @@ const messagesList = document.getElementById('messages');
 const apiBase = window.location.origin;
 
 let configData = {};
+// Prevents double-submit when Ctrl+Enter is mashed (button clicks are
+// already serialized by withBusy; the shortcut calls submitData directly).
+let submitting = false;
 
 window.addEventListener('error', evt => {
 	// iOS Safari can fail silently; surface errors as a toast.
@@ -188,18 +191,27 @@ function loadData(array) {
 	timerBtn.onclick = async function () {
 		await withBusy(timerBtn, async () => {
 			const minutes = Number(timerInput.value);
-			if (!minutes || minutes <= 0) {
-				showToast('Please enter a valid number of minutes', 'warning');
+			if (
+				!Number.isFinite(minutes) ||
+				minutes <= 0 ||
+				minutes * 60000 > 24 * 60 * 60 * 1000
+			) {
+				showToast('Please enter a valid number of minutes (1-1440)', 'warning');
 				return;
 			}
+			const previous = configData.timer;
 			configData.timer = minutes * 60000;
 			const result = await pushData(configData);
 			if (result.ok) showToast('Time interval updated');
-			else
+			else {
+				// Restore, or every later save re-sends the rejected value.
+				configData.timer = previous;
+				timerInput.value = previous / 60000;
 				showToast(
 					`Failed to update time interval: ${result.errorMessage}`,
 					'danger',
 				);
+			}
 		});
 	};
 	timerInput.addEventListener('keydown', evt => {
@@ -281,6 +293,8 @@ function updateTextLength() {
 }
 
 async function submitData(type) {
+	if (submitting) return;
+	submitting = true;
 	try {
 		if (!configData || !Array.isArray(configData.messages)) {
 			showToast('Still loading… try again in a second', 'warning');
@@ -343,6 +357,8 @@ async function submitData(type) {
 	} catch (err) {
 		log('error', 'submitData failed', err);
 		showToast(`Save failed: ${err?.message || err}`, 'danger');
+	} finally {
+		submitting = false;
 	}
 }
 
@@ -418,8 +434,11 @@ async function sendEntry(data, button) {
 }
 
 function createCard(messageData) {
+	// Messages written by older builds or hand-edited configs may lack
+	// eventData; a missing field must not abort the whole list render.
+	const eventData = messageData.eventData ?? {};
 	const card = document.createElement('div');
-	card.className = messageData.eventData.isEvent
+	card.className = eventData.isEvent
 		? 'card has-background-warning'
 		: 'card';
 
@@ -433,7 +452,7 @@ function createCard(messageData) {
 	text.innerText = messageData.msg;
 	cardContent.appendChild(text);
 
-	if (messageData.eventData.isEvent) {
+	if (eventData.isEvent) {
 		const dateRangeText = document.createElement('p');
 		const dateRangeSubText = document.createElement('p');
 
@@ -441,16 +460,16 @@ function createCard(messageData) {
 		dateRangeText.innerHTML = `
 			<span class="tag is-warning is-light has-text-weight-semibold" style="margin-right: 5px;">Date Range</span>
 			<span class="has-text-weight-semibold">${formatDate(
-				messageData.eventData.startDate,
+				eventData.startDate,
 			)}</span>
 			<span class="has-text-grey-dark">-</span>
 			<span class="has-text-weight-semibold">${formatDate(
-				messageData.eventData.endDate,
+				eventData.endDate,
 			)}</span>
 		`;
 
 		dateRangeSubText.className = 'is-size-7 has-text-grey';
-		dateRangeSubText.innerHTML = `<span class="tag is-info is-light" style="margin-left: 5px;">Repeat Every Year: ${messageData.eventData.repeatEveryYear}</span>`;
+		dateRangeSubText.innerHTML = `<span class="tag is-info is-light" style="margin-left: 5px;">Repeat Every Year: ${eventData.repeatEveryYear}</span>`;
 
 		cardContent.appendChild(dateRangeText);
 		cardContent.appendChild(dateRangeSubText);
@@ -512,16 +531,20 @@ async function saveApiKey(button) {
 		return;
 	}
 	await withBusy(button, async () => {
+		const previousKey = configData.apiWriteKey;
+		const previousValid = configData.isValidKey;
 		configData.apiWriteKey = apiKey;
-		configData.isValidKey = true;
+		// Let the server decide validity (it probes on the first send).
+		configData.isValidKey = undefined;
 		const result = await pushData(configData);
 		if (result.ok) {
+			configData.hasApiKey = true;
 			closeApiKeyModal();
 			document.getElementById('api-key-warning').style.display = 'none';
 			showToast('API key saved');
 		} else {
-			configData.apiWriteKey = undefined;
-			configData.isValidKey = false;
+			configData.apiWriteKey = previousKey;
+			configData.isValidKey = previousValid;
 			showToast(`Failed to save API key: ${result.errorMessage}`, 'danger');
 		}
 	});
@@ -529,14 +552,18 @@ async function saveApiKey(button) {
 
 async function resetApiKey(button) {
 	await withBusy(button, async () => {
+		const previous = configData.apiWriteKey;
 		configData.apiWriteKey = '';
-		configData.isValidKey = false;
 		const result = await pushData(configData);
 		if (result.ok) {
+			configData.hasApiKey = false;
 			showToast('API key reset');
 			document.getElementById('api-key-warning').style.display = 'block';
 			openApiKeyModal();
 		} else {
+			// Restore: an empty apiWriteKey in the next unrelated save (e.g.
+			// adding a message) would silently wipe the stored server key.
+			configData.apiWriteKey = previous;
 			showToast(`Failed to reset API key: ${result.errorMessage}`, 'danger');
 		}
 	});

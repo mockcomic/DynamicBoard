@@ -85,7 +85,14 @@ function createInput(i, j) {
 
 	input.addEventListener('input', function (evt) {
 		if (evt.data == null) return;
-		if (evt.data !== ' ') gridData[i][j] = evt.data;
+		// Paste fires once with the whole string; keep only the first code
+		// point so the model can never hold an unsubmittable multi-char cell.
+		const ch = [...evt.data][0] ?? '';
+		// A space must clear the cell (even one that already had a char);
+		// anything else stores the character and syncs the visible input,
+		// which may still hold a pasted remainder.
+		gridData[i][j] = ch === ' ' ? '' : ch;
+		input.value = gridData[i][j];
 		var next =
 			j >= gridX - 1 ? (i >= gridY - 1 ? [0, 0] : [i + 1, 0]) : [i, j + 1];
 		var nextInput = document.getElementById(`${next[1]},${next[0]}`);

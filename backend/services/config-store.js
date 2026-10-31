@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { logWarn } = require('../utils/logger');
 
 // Resolve against the project root instead of the process cwd, so the app
 // behaves the same when launched from another directory (or as a pkg binary).
@@ -33,16 +34,38 @@ function serializeConfig(config) {
 
 // Write via a temp file + rename so a crash mid-write can never leave a
 // truncated config.json behind (rename is atomic on POSIX and Windows).
+// The temp name is unique per write: concurrent writers (overlapping PUTs,
+// or a sync controller write racing an async route write) previously shared
+// one `${pid}.tmp` path and corrupted each other's renames.
+function tmpPathFor(file) {
+	return `${file}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+}
+
+// config.json holds the Vestaboard API key: never group/world-readable.
+const WRITE_OPTIONS = { mode: 0o600 };
+
 function atomicWriteSync(file, data) {
-	const tmp = `${file}.${process.pid}.tmp`;
-	fs.writeFileSync(tmp, data);
-	fs.renameSync(tmp, file);
+	const tmp = tmpPathFor(file);
+	try {
+		fs.writeFileSync(tmp, data, WRITE_OPTIONS);
+		fs.chmodSync(tmp, 0o600); // survive a pre-existing tmp's mode
+		fs.renameSync(tmp, file);
+	} catch (err) {
+		fs.rmSync(tmp, { force: true });
+		throw err;
+	}
 }
 
 async function atomicWriteAsync(file, data) {
-	const tmp = `${file}.${process.pid}.tmp`;
-	await fs.promises.writeFile(tmp, data);
-	await fs.promises.rename(tmp, file);
+	const tmp = tmpPathFor(file);
+	try {
+		await fs.promises.writeFile(tmp, data, WRITE_OPTIONS);
+		await fs.promises.chmod(tmp, 0o600);
+		await fs.promises.rename(tmp, file);
+	} catch (err) {
+		await fs.promises.rm(tmp, { force: true }).catch(() => {});
+		throw err;
+	}
 }
 
 function isValidTimezone(value) {
@@ -179,6 +202,10 @@ function sanitizeConfig(input, existing) {
 			throw validationError('messages must be an array');
 		}
 		messages = source.messages.map(normalizeMessage);
+		const seen = new Set(messages.map(m => String(m.id)));
+		if (seen.size !== messages.length) {
+			throw validationError('message ids must be unique');
+		}
 	}
 
 	return {
@@ -205,6 +232,38 @@ function toPublicConfig(config) {
 	};
 }
 
+// A corrupt config.json (bad hand edit, power loss) must not brick the app:
+// quarantine the unreadable file and fall back to defaults so the UI can
+// recover by re-saving (GET then shows hasApiKey=false and prompts for it).
+function quarantineCorruptConfig(err) {
+	const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+	const badPath = `${CONFIG_PATH}.corrupt-${stamp}`;
+	try {
+		fs.renameSync(CONFIG_PATH, badPath);
+	} catch {
+		// rename failed (permissions?); fall back to defaults anyway.
+	}
+	logConfigCorruption(`config.json was unreadable (${err.message}); moved to ${badPath}`);
+	return cloneDefaultConfig();
+}
+
+let lastCorruptionLog = 0;
+function logConfigCorruption(message) {
+	const now = Date.now();
+	if (now - lastCorruptionLog > 60000) {
+		lastCorruptionLog = now;
+		logWarn(message);
+	}
+}
+
+function parseConfig(raw) {
+	try {
+		return JSON.parse(raw);
+	} catch (err) {
+		return quarantineCorruptConfig(err);
+	}
+}
+
 function ensureConfigSync() {
 	if (!fs.existsSync(CONFIG_PATH)) {
 		const defaultConfig = cloneDefaultConfig();
@@ -217,7 +276,7 @@ function ensureConfigSync() {
 
 function readConfigSync() {
 	const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
-	return JSON.parse(raw);
+	return parseConfig(raw);
 }
 
 function writeConfigSync(data) {
@@ -227,7 +286,7 @@ function writeConfigSync(data) {
 async function readConfig() {
 	try {
 		const raw = await fs.promises.readFile(CONFIG_PATH, 'utf8');
-		return JSON.parse(raw);
+		return parseConfig(raw);
 	} catch (err) {
 		if (err && err.code === 'ENOENT') {
 			const defaultConfig = cloneDefaultConfig();
