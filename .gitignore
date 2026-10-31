@@ -38,3 +38,5 @@ tests/.config-test-*.json
 
 # icon generation scratch
 scripts/_gen_work/
+
+__pycache__/
