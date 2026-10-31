@@ -35,3 +35,6 @@ release/config.json
 # transient config files from test runs
 tests/.api-test-*.json
 tests/.config-test-*.json
+
+# icon generation scratch
+scripts/_gen_work/
