@@ -52,9 +52,11 @@ def wordmark(icon):
     out.save(os.path.join(SRC, "logo.png"))
 
 def splash(icon, w, h):
+    """iOS launch screen: dark canvas matching the app's #242424 theme so
+    the handoff to the first screen is seamless."""
     side = min(w, h) // 3
     art = icon.resize((side, side), Image.LANCZOS)
-    out = Image.new("RGB", (w, h), (255, 255, 255))
+    out = Image.new("RGB", (w, h), (36, 36, 36))
     out.paste(art, ((w - side) // 2, (h - side) // 2), art)
     out.save(os.path.join(SRC, "icons", f"apple-splash-{w}-{h}.jpg"),
              quality=86)
