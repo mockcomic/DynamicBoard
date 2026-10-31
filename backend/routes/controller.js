@@ -528,13 +528,29 @@ async function processMessages() {
 	let idx = lastMsg == null ? 0 : (lastMsg + 1) % len;
 
 	for (let attempts = 0; attempts < len; attempts++) {
+		// The message list can shrink mid-loop (processEvent auto-deletes
+		// expired events), so re-read the array bounds every iteration and
+		// skip indexes that no longer exist instead of crashing on undefined.
+		const currentLen = Array.isArray(runtimeData?.messages)
+			? runtimeData.messages.length
+			: 0;
+		if (currentLen === 0) {
+			logInfo('No messages left to process');
+			isLooping = false;
+			return;
+		}
+		idx = idx % currentLen;
 		const messageData = runtimeData.messages[idx];
+		if (!messageData) {
+			idx = (idx + 1) % currentLen;
+			continue;
+		}
 
-		if (messageData?.eventData?.isEvent === true) {
+		if (messageData.eventData?.isEvent === true) {
 			const validMessage = await processEvent(messageData);
 			if (!validMessage) {
 				runtimeData = loadConfig();
-				idx = (idx + 1) % len;
+				idx = (idx + 1) % (runtimeData.messages?.length || 1);
 				continue;
 			}
 		}
@@ -550,7 +566,7 @@ async function processMessages() {
 				logInfo('Skipping empty rendered text message', {
 					id: messageData.id,
 				});
-				idx = (idx + 1) % len;
+				idx = (idx + 1) % currentLen;
 				continue;
 			}
 			result = await sendToVestaboard(msg, 'text');
@@ -654,6 +670,7 @@ module.exports = {
 	checkVariable,
 	sendToVestaboard,
 	notifyConfigChanged,
+	__processMessagesForTests: processMessages,
 	__setConfigForTests,
 	__getConfigForTests,
 	__resetStateForTests,
