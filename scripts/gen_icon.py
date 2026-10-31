@@ -8,12 +8,12 @@ Usage: python3 gen_icon.py SIZE OUT.png"""
 import sys
 from PIL import Image, ImageDraw
 
-BG = (243, 236, 224)
-FLAP_TOP = (58, 64, 74)
-FLAP_BOT = (15, 17, 21)
+BG = (244, 244, 242)
+FLAP_TOP = (74, 81, 94)
+FLAP_BOT = (11, 12, 14)
 SEAM = (0, 0, 0)
 HINGE = (150, 145, 132)
-ORANGE = (236, 96, 22)    # single accent
+ORANGE = (69, 92, 233)    # single accent
 
 
 def gen(S, out):
