@@ -22,7 +22,7 @@
 			"node_modules/ejs/**/*"
 		]
 	},
-	"license": "ISC",
+	"license": "MIT",
 	"dependencies": {
 		"cors": "^2.8.5",
 		"ejs": "^3.1.10",
