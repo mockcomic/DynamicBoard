@@ -1,32 +1,274 @@
+:root {
+	--panel-bg: #2e2e2e;
+	--panel-border: rgba(255, 255, 255, 0.1);
+	--text-strong: #f5f5f5;
+	--text-muted: #c4c4c4;
+}
+
 body {
 	background: #242424 url('../assets/boxed-bg-dark.png') repeat;
 	margin: 0;
 	padding: 0;
+	color: var(--text-strong);
+}
+
+/* ---- Dark theme overrides for Bulma defaults ---- */
+
+.title,
+.subtitle,
+.label,
+.modal-card-title {
+	color: var(--text-strong) !important;
+}
+
+.box,
+.card,
+.modal-card-head,
+.modal-card-body,
+.modal-card-foot {
+	background: var(--panel-bg);
+	color: var(--text-strong);
+	border: 1px solid var(--panel-border);
+	border-radius: 10px;
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.has-background-grey-lighter {
+	background: #383838 !important;
+}
+
+/* Event cards keep a yellow background, so their text must stay dark. */
+.card.has-background-warning .title,
+.card.has-background-warning .subtitle {
+	color: rgba(0, 0, 0, 0.85) !important;
+}
+
+.input,
+.textarea,
+.select select {
+	background: #1d1d1d;
+	color: var(--text-strong);
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+	color: #8a8a8a;
+}
+
+.input:focus,
+.textarea:focus,
+.select select:focus {
+	border-color: #48c774;
+	box-shadow: 0 0 0 2px rgba(72, 199, 116, 0.35);
+}
+
+/* ---- Header (mobile first: text block shrinks and wraps, button pinned) ---- */
+
+.app-header {
+	padding: 0.9rem 0;
+	background: linear-gradient(180deg, #1a1a1a 0%, #242424 100%);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Mobile: centered stack like the old box header, so nothing crowds or clips. */
+.app-header-row {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	gap: 0.5rem;
+}
+
+.app-header-text {
+	min-width: 0; /* allows the tagline to wrap instead of overlapping */
+}
+
+.app-header-text .title {
+	overflow-wrap: anywhere;
+	font-size: clamp(1.25rem, 6.5vw, 1.5rem);
+	line-height: 1.15;
+}
+
+.app-header-text .subtitle {
+	overflow-wrap: anywhere;
+	/* Bulma's .subtitle carries margin-top:-1.25rem, which pulled the tagline
+	   up on top of the title. Reset it and give explicit breathing room. */
+	margin-top: 0.35rem !important;
+	margin-bottom: 0;
+}
+
+/* ---- Toasts ---- */
+
+.toast-container {
+	position: fixed;
+	top: 12px;
+	left: 12px;
+	right: 12px;
+	z-index: 9999;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	pointer-events: none;
+}
+
+.toast-container .notification {
+	pointer-events: auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0;
+	padding-right: 2.75rem;
+	opacity: 0;
+	transform: translateY(-4px);
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-container .notification.is-visible {
+	opacity: 1;
+	transform: none;
+}
+
+.toast-container .notification .toast-message {
+	flex: 1 1 auto;
+	text-align: left;
+	word-break: break-word;
+}
+
+.toast-container .notification .toast-action {
+	flex: 0 0 auto;
+}
+
+/* ---- Grid (Vestaboard 22x6 preview) ----
+	 Mobile first: shrink the whole board to fit the phone width (as on the old
+	 main layout) before falling back to a fixed-size scrollable strip. Desktop
+	 widens it to fill. */
+
+.grid-viewport {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	padding-bottom: 6px;
 }
 
 .grid {
 	display: grid;
-	grid-template-columns: repeat(22, 18px);
-	margin-top: 10px;
-	width: 435px;
-	height: 200px;
-	margin-left: auto;
-	margin-right: auto;
-	background: grey;
-	border: 20px solid black;
+	grid-template-columns: repeat(22, minmax(0, 1fr));
+	grid-template-rows: repeat(6, minmax(0, 1fr));
+	gap: 1px;
+	width: min(440px, calc(100vw - 68px)); /* fits inside the section padding on phones, ~18px cells on desktop */
+	aspect-ratio: 22 / 6;
+	margin: 10px auto 0;
+	background: #1a1a1a;
+	border: 12px solid #000;
+	border-radius: 8px;
+	box-sizing: border-box;
 }
 
 .grid-item {
-	border: 1px solid black;
-	border-radius: 0px;
-	padding: 1px;
-	background: rgba(0, 0, 0, 0.5);
-	color: white;
-}
-
-.centered {
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	border: none;
+	border-radius: 0;
+	padding: 0;
+	background: rgba(255, 255, 255, 0.06);
+	color: #fff;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 0.72rem;
+	font-weight: 600;
+	line-height: 1;
 	text-align: center;
+	text-transform: uppercase;
 }
 
-.card {
+.grid-item:focus {
+	outline: 2px solid #48c774;
+	outline-offset: -2px;
+	background: rgba(72, 199, 116, 0.25);
+}
+
+/* ---- Modals & forms ---- */
+
+.birthday-modal-actions,
+.schedule-modal-actions {
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}
+
+/* Mobile first: action buttons stack full width. */
+.text-action-buttons .button {
+	width: 100%;
+}
+
+.schedule-presets .button {
+	width: 100%;
+}
+
+.schedule-summary {
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 8px;
+	padding: 8px 10px;
+	color: #f0f0f0;
+}
+
+.text-meta {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 0.25rem 0.75rem;
+	border-top: 1px dashed rgba(255, 255, 255, 0.2);
+	padding-top: 6px;
+}
+
+.text-meta .level-left,
+.text-meta .level-right {
+	display: block;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+#text-length {
+	font-weight: 600;
+}
+
+/* ---- Larger screens ---- */
+
+@media (min-width: 769px) {
+	.app-header-row {
+		flex-direction: row;
+		justify-content: space-between;
+		text-align: left;
+		gap: 0.75rem;
+	}
+
+	.grid-section {
+		padding-left: 1.5rem;
+		padding-right: 1.5rem;
+	}
+
+	.grid {
+		border-width: clamp(12px, 2vw, 20px);
+	}
+
+	.grid-item {
+		font-size: clamp(0.72rem, 1.2vw, 1rem);
+	}
+
+	.text-action-buttons .button {
+		width: auto;
+		min-width: 140px;
+	}
+
+	.schedule-presets .button {
+		width: auto;
+		min-width: 120px;
+	}
+
+	.toast-container {
+		left: auto;
+		width: min(360px, calc(100vw - 32px));
+	}
 }

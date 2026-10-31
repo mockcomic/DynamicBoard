@@ -1,11 +1,10 @@
 const express = require('express');
 const path = require('path');
-const ejs = require('ejs');
-const routes = require('./routes/routes');
+const routes = require('./backend/routes');
 const os = require('os');
-const { logInfo } = require('./backend/utils/logger');
+const { logInfo, logWarn, logError } = require('./backend/utils/logger');
 const app = express();
-const port = 4000;
+const port = Number(process.env.PORT) || 4000;
 
 function get192LanIP() {
 	const nets = os.networkInterfaces();
@@ -38,19 +37,55 @@ app.use(
 		},
 	})
 );
-app.set('views', path.join(__dirname, 'public'));
 
-app.engine('html', ejs.renderFile);
-app.set('view engine', 'html');
+app.use(express.json({ limit: '1mb' }));
 
-app.use(express.json());
+// DNS-rebinding defense: without a Host check, a page on any origin a
+// victim visits can make same-origin requests to this LAN server and take
+// over the board (read messages, replace the API key). Allow localhost and
+// the LAN addresses this app serves, plus an optional operator allowlist.
+app.use('/api', (req, res, next) => {
+	const host = (req.headers.host || '').split(':')[0].toLowerCase();
+	const allowed = new Set([
+		'localhost',
+		'127.0.0.1',
+		'[::1]',
+		'::1',
+		get192LanIP(),
+		...(process.env.DYNAMICBOARD_ALLOWED_HOSTS || '')
+			.split(',')
+			.map(h => h.trim().toLowerCase())
+			.filter(Boolean),
+	]);
+	if (!host || allowed.has(host)) return next();
+	logWarn('Rejected request with foreign Host header', { host });
+	return res.status(421).json({ error: 'Misdirected request host' });
+});
 
 app.use('/', routes);
 
-app.listen(port, () => {
-	const lanIP = get192LanIP() || '127.0.0.1';
-	logInfo('Server started', {
-		local: `http://localhost:${port}`,
-		network: `http://${lanIP}:${port}`,
-	});
+// Body-parse failures must not return Express's HTML error page: the PWA
+// toasts raw HTML at the user. Map them to the {error} JSON shape instead.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+	if (err?.type === 'entity.parse.failed') {
+		return res.status(400).json({ error: 'Malformed JSON request body' });
+	}
+	if (err?.type === 'entity.too.large') {
+		return res.status(413).json({ error: 'Request body too large' });
+	}
+	logError('Unhandled request error', err);
+	return res.status(500).json({ error: 'Server error' });
 });
+
+if (require.main === module) {
+	app.listen(port, () => {
+		const lanIP = get192LanIP() || '127.0.0.1';
+		logInfo('Server started', {
+			local: `http://localhost:${port}`,
+			network: `http://${lanIP}:${port}`,
+		});
+	});
+}
+
+module.exports = app;

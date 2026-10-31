@@ -5,55 +5,73 @@
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 		<title>Dynamicboard</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta
+			name="description"
+			content="A dynamic board for creating and managing events."
+		/>
+		<meta name="theme-color" content="#242424" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta
+			name="apple-mobile-web-app-status-bar-style"
+			content="black-translucent"
+		/>
+		<link rel="apple-touch-icon" href="/icons/apple-icon-180.png" />
+		<link rel="icon" type="image/png" sizes="32x32" href="/icons/32.png" />
+		<link rel="icon" type="image/png" sizes="16x16" href="/icons/16.png" />
 		<link
 			rel="stylesheet"
 			href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
 		/>
-		<link rel="stylesheet" href="./css/styles.css?v=20260204" />
-		<link rel="manifest" href="manifest.json" />
+		<link rel="stylesheet" href="./css/styles.css?v=20261021a" />
+		<link rel="manifest" href="/manifest.json" />
 	</head>
 
 	<body>
 		<!-- Header Section -->
-		<section
-			class="hero is-danger is-bold"
-			id="api-key-warning"
-			style="display: none"
-		>
-			<div class="container has-text-centered p-5">
-				<h2 class="subtitle">Your API key seems to be invalid or missing</h2>
-				<div class="container">
-					<button class="button is-primary is-rounded" onclick="setApiKey()">
+		<header class="app-header">
+			<div class="container">
+				<div class="app-header-row">
+					<div class="app-header-text">
+						<h1 class="title is-5 is-3-tablet mb-1">Dynamicboard</h1>
+						<p class="subtitle is-7 is-6-tablet mb-0">
+							A dynamic board for creating and managing events.
+						</p>
+					</div>
+					<button
+						class="button is-small is-rounded is-info is-light"
+						id="legend-toggle-btn"
+						type="button"
+					>
+						Legend
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<section id="api-key-warning" class="section pt-0" style="display: none">
+			<div class="container">
+				<div class="notification is-warning is-bold py-4 mb-0">
+					<p class="has-text-weight-semibold mb-3">
+						Your API key seems to be invalid or missing.
+					</p>
+					<button class="button is-primary is-rounded" id="api-key-banner-btn">
 						Enter API Key
 					</button>
 				</div>
 			</div>
 		</section>
 
-		<section class="section">
-			<div class="container">
-				<div class="box has-text-centered mt-5 p-5">
-					<h1 class="title">Dynamicboard</h1>
-					<h2 class="subtitle">
-						A dynamic board for creating and managing events.
-					</h2>
-					<h3 class="subtitle is-6">
-						Click on a cell to edit it. Use the buttons below to submit or clear
-						the grid.
-					</h3>
-					<div class="buttons is-centered mt-4">
-						<button class="button is-info is-rounded" id="legend-toggle-btn">
-							Show Legend
-						</button>
-					</div>
-				</div>
-			</div>
-		</section>
-
 		<!-- Grid Section -->
-		<section>
+		<section class="section pt-4 pb-4">
 			<div class="container">
-				<div id="grid" class="grid"></div>
+				<div class="grid-viewport">
+					<div id="grid" class="grid"></div>
+				</div>
+				<p class="help has-text-centered mt-2">
+					Click a cell to edit it, then use the buttons below to submit or
+					clear the grid.
+				</p>
 			</div>
 		</section>
 
@@ -64,16 +82,21 @@
 					<!-- Grid Controls -->
 					<div class="box has-background-grey-lighter">
 						<h2 class="title is-4 has-text-centered">Grid Controls</h2>
+						<p class="help has-text-centered quick-hint">
+							Tip: while focused on the grid, press Ctrl+Enter to submit.
+						</p>
 						<div class="buttons is-centered mt-4">
 							<button
 								class="button is-primary is-rounded"
-								onclick="submitData('grid')"
+								id="submit-grid-btn"
+								type="button"
 							>
 								Submit
 							</button>
 							<button
 								class="button is-warning is-rounded"
-								onclick="clearGrid()"
+								id="clear-grid-btn"
+								type="button"
 							>
 								Clear
 							</button>
@@ -92,61 +115,52 @@
 									rows="3"
 								></textarea>
 							</div>
-						</div>
-						<div class="has-text-centered mt-4">
-							<button
-								class="button is-primary is-rounded has-text-weight-semibold"
-								onclick="submitData('text')"
-							>
-								Submit
-							</button>
-						</div>
-					</div>
-
-					<!-- Date Range Controls -->
-					<div class="field has-text-centered mt-5">
-						<label class="title is-4">Date Range</label>
-						<div class="field mt-2">
-							<label class="checkbox">
-								<input
-									type="checkbox"
-									id="toggleDateRange"
-									onclick="toggleDateRangeVisibility()"
-								/>
-								Show Date Range
-							</label>
-						</div>
-
-						<div id="dateRangeText" class="mt-3" style="display: none">
-							<div class="box has-background-grey-lighter has-text-centered">
-								<input
-									type="datetime-local"
-									id="startDateText"
-									class="input mb-2"
-								/>
-								<span class="mx-2">to</span>
-								<input
-									type="datetime-local"
-									id="endDateText"
-									class="input mb-4"
-								/>
-								<div class="mt-2">
-									<label class="checkbox">
-										<input
-											type="checkbox"
-											id="repeatEveryYear"
-											onclick="toggleRepeatEveryYear()"
-										/>
-										Repeat every year?
-									</label>
+							<div class="level is-mobile text-meta mt-2 mb-0">
+								<div class="level-left">
+									<p class="help mb-0">Shortcut: Ctrl+Enter to submit text</p>
+								</div>
+								<div class="level-right">
+									<p class="help mb-0" id="text-length">0 chars</p>
 								</div>
 							</div>
 						</div>
+						<div
+							class="buttons is-centered is-flex-wrap-wrap mt-4 text-action-buttons"
+						>
+							<button
+								class="button is-primary is-rounded has-text-weight-semibold"
+								type="button"
+								id="submit-text-btn"
+							>
+								Submit
+							</button>
+							<button
+								class="button is-warning is-light is-rounded has-text-weight-semibold"
+								type="button"
+								id="schedule-btn"
+							>
+								Schedule
+							</button>
+							<button
+								class="button is-link is-light is-rounded has-text-weight-semibold"
+								type="button"
+								id="add-birthday-btn"
+							>
+								Add Birthday
+							</button>
+						</div>
+						<p
+							class="help has-text-centered mt-2 schedule-summary"
+							id="schedule-summary"
+						>
+							No schedule set for next message.
+						</p>
 					</div>
 				</div>
 
 				<!-- Timer Input -->
 				<div class="box has-text-centered">
+					<p class="title is-6 mb-3">Board Rotation</p>
 					<div class="field has-addons is-justify-content-center mb-3">
 						<div class="control">
 							<input
@@ -155,15 +169,17 @@
 								min="1"
 								class="input"
 								placeholder="Minutes"
+								aria-label="Rotation interval in minutes"
 								style="width: 120px"
 							/>
 						</div>
 						<div class="control">
-							<a id="timerInput-btn" class="button is-primary">
-								Update time in minutes
-							</a>
+							<button id="timerInput-btn" class="button is-primary" type="button">
+								Update Interval
+							</button>
 						</div>
 					</div>
+					<p class="help mt-0">How often messages rotate on the board.</p>
 					<div class="field is-grouped is-justify-content-center">
 						<div class="control">
 							<label class="checkbox is-size-5">
@@ -178,7 +194,7 @@
 
 		<!-- Legend Modal -->
 		<div class="modal" id="legend-modal">
-			<div class="modal-background" onclick="closeEventModal()"></div>
+			<div class="modal-background" id="legend-modal-bg"></div>
 			<div class="modal-content">
 				<div class="box p-5">
 					<p class="title is-4">Legend:</p>
@@ -190,11 +206,16 @@
 						<ul>
 							<li>
 								<strong>tillDate(mm,dd,yyyy)</strong><br />
-								Returns how many days till the date specified. Will count up
-								after passing the date.
+								Returns how many days till the date specified. For yearly
+								repeating events it counts to the next yearly occurrence.
 							</li>
 							<li>
-								<strong>date()</strong><br />
+								<strong>birthday(name,mm,dd,yyyy,daysAhead)</strong><br />
+								Shows a countdown inside the days-ahead window and switches to
+								Happy Birthday on the day.
+							</li>
+							<li>
+								<strong>todayDate()</strong><br />
 								Returns the current date.
 							</li>
 						</ul>
@@ -207,53 +228,291 @@
 			</div>
 			<button
 				class="modal-close is-large"
-				onclick="closeEventModal()"
+				id="legend-close-btn"
 				aria-label="close"
 			></button>
 		</div>
 
-		<!-- Event Modal -->
-		<div class="modal" id="event-modal">
-			<div class="modal-background"></div>
-			<div class="modal-content">
-				<div class="box p-5">
-					<p class="title is-4">Legend:</p>
-					<div class="content">
-						<div>
-							<strong>All functions must be wrapped with {}</strong>
-							<input class="input mt-2" />
-						</div>
-						<ul class="mt-4">
-							<li>
-								<strong>tillDate(mm,dd,yyyy)</strong><br />
-								Returns how many days till the date specified. Will count up
-								after passing the date.
-							</li>
-							<li>
-								<strong>date()</strong><br />
-								Returns the current date.
-							</li>
-						</ul>
-						<div class="has-text-weight-semibold mt-4">
-							<strong>You can use the following colored square emojis:</strong>
-							<p>🟫 🟩 🟥 🟦 🟧 🟪 🟨 ⬜️</p>
+		<!-- Birthday Modal -->
+		<div class="modal" id="birthday-modal">
+			<div class="modal-background" id="birthday-modal-bg"></div>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Add Birthday Message</p>
+					<button
+						class="delete"
+						id="birthday-close-head-btn"
+						aria-label="close"
+					></button>
+				</header>
+				<section class="modal-card-body">
+					<div class="field">
+						<label class="label" for="birthday-name">Name</label>
+						<div class="control">
+							<input
+								class="input"
+								type="text"
+								id="birthday-name"
+								placeholder="Ada"
+							/>
 						</div>
 					</div>
-				</div>
+
+					<div class="columns is-mobile">
+						<div class="column">
+							<label class="label" for="birthday-month">Month</label>
+							<div class="select is-fullwidth">
+								<select id="birthday-month">
+									<option value="">Month</option>
+									<option value="1">January</option>
+									<option value="2">February</option>
+									<option value="3">March</option>
+									<option value="4">April</option>
+									<option value="5">May</option>
+									<option value="6">June</option>
+									<option value="7">July</option>
+									<option value="8">August</option>
+									<option value="9">September</option>
+									<option value="10">October</option>
+									<option value="11">November</option>
+									<option value="12">December</option>
+								</select>
+							</div>
+						</div>
+						<div class="column">
+							<label class="label" for="birthday-day">Day</label>
+							<input
+								class="input"
+								type="number"
+								id="birthday-day"
+								min="1"
+								max="31"
+								placeholder="18"
+							/>
+						</div>
+						<div class="column">
+							<label class="label" for="birthday-year">Year</label>
+							<input
+								class="input"
+								type="number"
+								id="birthday-year"
+								min="1900"
+								max="2999"
+								placeholder="1994"
+							/>
+						</div>
+					</div>
+
+					<div class="field">
+						<label class="label" for="birthday-days-ahead">Days Ahead</label>
+						<div class="control">
+							<input
+								class="input"
+								type="number"
+								id="birthday-days-ahead"
+								min="0"
+								placeholder="30"
+								value="30"
+							/>
+						</div>
+					</div>
+
+					<div class="field">
+						<label class="label" for="birthday-days-to-text"
+							>Days-To Text (optional)</label
+						>
+						<div class="control">
+							<input
+								class="input"
+								type="text"
+								id="birthday-days-to-text"
+								placeholder="{name}'s birthday is in {days} {dayLabel}"
+							/>
+						</div>
+						<p class="help">Supports tokens: {name}, {days}, {dayLabel}</p>
+					</div>
+
+					<div class="field">
+						<label class="label" for="birthday-day-of-text"
+							>Day-Of Text (optional)</label
+						>
+						<div class="control">
+							<input
+								class="input"
+								type="text"
+								id="birthday-day-of-text"
+								placeholder="Happy Birthday {name}!"
+							/>
+						</div>
+						<p class="help">Supports tokens: {name}, {days}, {dayLabel}</p>
+						<p class="help">
+							Builds: {birthday(name,mm,dd,yyyy,daysAhead,daysToText,dayOfText)}
+						</p>
+					</div>
+				</section>
+				<footer class="modal-card-foot birthday-modal-actions">
+					<button class="button is-primary" id="birthday-save-btn">
+						Add Birthday Message
+					</button>
+					<button class="button" id="birthday-cancel-btn">Cancel</button>
+				</footer>
 			</div>
-			<button
-				class="modal-close is-large"
-				id="close-event-btn"
-				aria-label="close"
-			></button>
+		</div>
+
+		<!-- Schedule Modal -->
+		<div class="modal" id="schedule-modal">
+			<div class="modal-background" id="schedule-modal-bg"></div>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Schedule Message</p>
+					<button
+						class="delete"
+						id="schedule-close-head-btn"
+						aria-label="close"
+					></button>
+				</header>
+				<section class="modal-card-body">
+					<div class="field">
+						<label class="checkbox">
+							<input type="checkbox" id="toggleDateRange" />
+							Enable schedule for next message
+						</label>
+					</div>
+
+					<div class="field mt-3">
+						<label class="label">Quick Presets</label>
+						<div class="buttons is-flex-wrap-wrap schedule-presets">
+							<button
+								class="button is-small is-light"
+								type="button"
+								id="schedule-preset-24h"
+							>
+								Next 24 Hours
+							</button>
+							<button
+								class="button is-small is-light"
+								type="button"
+								id="schedule-preset-7d"
+							>
+								Next 7 Days
+							</button>
+							<button
+								class="button is-small is-light"
+								type="button"
+								id="schedule-preset-weekend"
+							>
+								This Weekend
+							</button>
+						</div>
+					</div>
+
+					<div class="field mt-3">
+						<label class="checkbox">
+							<input type="checkbox" id="schedule-start-now" />
+							Set start to now
+						</label>
+					</div>
+
+					<div class="field mt-3">
+						<label class="label" for="startDateText">Start</label>
+						<div class="control">
+							<input type="datetime-local" id="startDateText" class="input" />
+						</div>
+					</div>
+
+					<div class="field">
+						<label class="label" for="endDateText">End</label>
+						<div class="control">
+							<input type="datetime-local" id="endDateText" class="input" />
+						</div>
+					</div>
+
+					<div class="field mt-3">
+						<label class="checkbox">
+							<input type="checkbox" id="repeatEveryYear" />
+							Repeat every year
+						</label>
+					</div>
+
+					<div class="field mt-3">
+						<label class="checkbox">
+							<input type="checkbox" id="schedule-all-day" />
+							All day window (00:00 to 23:59)
+						</label>
+					</div>
+
+					<p class="help">
+						Tip: Use Clear to remove scheduling and send as a normal message.
+					</p>
+				</section>
+				<footer class="modal-card-foot schedule-modal-actions">
+					<button class="button is-primary" id="schedule-apply-btn">
+						Apply Schedule
+					</button>
+					<button class="button is-warning is-light" id="schedule-clear-btn">
+						Clear
+					</button>
+					<button class="button" id="schedule-cancel-btn">Close</button>
+				</footer>
+			</div>
+		</div>
+
+		<!-- API Key Modal -->
+		<div class="modal" id="api-key-modal">
+			<div class="modal-background" id="api-key-modal-bg"></div>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Enter API Key</p>
+					<button
+						class="delete"
+						id="api-key-close-head-btn"
+						aria-label="close"
+					></button>
+				</header>
+				<section class="modal-card-body">
+					<div class="field">
+						<label class="label" for="api-key-input">Vestaboard API key</label>
+						<div class="field has-addons">
+							<div class="control is-expanded">
+								<input
+									class="input"
+									type="password"
+									id="api-key-input"
+									placeholder="Your write key"
+									autocomplete="off"
+									autocapitalize="off"
+									spellcheck="false"
+								/>
+							</div>
+							<div class="control">
+								<button
+									class="button"
+									id="api-key-toggle-btn"
+									type="button"
+									aria-pressed="false"
+								>
+									Show
+								</button>
+							</div>
+						</div>
+						<p class="help">
+							The key is stored on the server, never in the browser.
+						</p>
+					</div>
+				</section>
+				<footer class="modal-card-foot schedule-modal-actions">
+					<button class="button is-primary" id="api-key-save-btn">
+						Save API Key
+					</button>
+					<button class="button" id="api-key-cancel-btn">Cancel</button>
+				</footer>
+			</div>
 		</div>
 
 		<!-- Messages Section -->
 		<section class="section">
 			<div class="container">
-				<h2 class="title is-2 has-text-centered has-text-info-light mb-5">
-					---Messages---
-				</h2>
+				<h2 class="title is-4 has-text-centered mb-5">Saved Messages</h2>
 				<div class="has-text-centered">
 					<div id="messages"></div>
 				</div>
@@ -262,17 +521,40 @@
 
 		<footer class="has-text-centered">
 			<div class="container">
+				<div
+					class="field has-addons is-centered"
+					style="max-width: 480px; margin: 0 auto 0.75rem"
+				>
+					<div class="control is-expanded">
+						<input
+							class="input is-small"
+							id="timezone-input"
+							type="text"
+							placeholder="Time zone (e.g. America/Los_Angeles)"
+							autocomplete="off"
+						/>
+					</div>
+					<div class="control">
+						<button class="button is-small is-primary" id="timezone-save-btn">
+							Save Time Zone
+						</button>
+					</div>
+				</div>
+				<p class="is-size-7 has-text-grey mb-3">
+					Leave empty to use the server's local time zone. Affects birthdays,
+					countdowns, dates, and event schedules.
+				</p>
 				<button
 					class="button is-warning is-rounded"
 					id="reset-api-key-btn"
-					onclick="resetApiKey()"
+					type="button"
 				>
 					Reset API Key
 				</button>
-				<p class="is-size-7 has-text-grey-light mt-2">Build 20260204</p>
+				<p class="is-size-7 has-text-grey-light mt-2">Build 20261016e</p>
 			</div>
 		</footer>
 
-		<script src="./js/index.js?v=20260204" defer></script>
+		<script src="./js/app.js?v=20261016e" type="module"></script>
 	</body>
 </html>
