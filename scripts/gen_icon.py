@@ -8,11 +8,11 @@ Usage: python3 gen_icon.py SIZE OUT.png"""
 import sys
 from PIL import Image, ImageDraw
 
-BG = (244, 244, 242)
+BG = (233, 221, 200)
 FLAP_TOP = (74, 81, 94)
-FLAP_BOT = (11, 12, 14)
+FLAP_BOT = (12, 13, 16)
 SEAM = (0, 0, 0)
-HINGE = (150, 145, 132)
+HINGE = (140, 130, 110)
 ORANGE = (69, 92, 233)    # single accent
 
 
