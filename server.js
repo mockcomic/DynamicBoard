@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const routes = require('./backend/routes');
 const os = require('os');
-const { logInfo, logError } = require('./backend/utils/logger');
+const { logInfo, logWarn, logError } = require('./backend/utils/logger');
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 
@@ -39,6 +39,28 @@ app.use(
 );
 
 app.use(express.json({ limit: '1mb' }));
+
+// DNS-rebinding defense: without a Host check, a page on any origin a
+// victim visits can make same-origin requests to this LAN server and take
+// over the board (read messages, replace the API key). Allow localhost and
+// the LAN addresses this app serves, plus an optional operator allowlist.
+app.use('/api', (req, res, next) => {
+	const host = (req.headers.host || '').split(':')[0].toLowerCase();
+	const allowed = new Set([
+		'localhost',
+		'127.0.0.1',
+		'[::1]',
+		'::1',
+		get192LanIP(),
+		...(process.env.DYNAMICBOARD_ALLOWED_HOSTS || '')
+			.split(',')
+			.map(h => h.trim().toLowerCase())
+			.filter(Boolean),
+	]);
+	if (!host || allowed.has(host)) return next();
+	logWarn('Rejected request with foreign Host header', { host });
+	return res.status(421).json({ error: 'Misdirected request host' });
+});
 
 app.use('/', routes);
 

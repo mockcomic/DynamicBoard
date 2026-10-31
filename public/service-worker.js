@@ -1,5 +1,8 @@
-const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v14';
-const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v14';
+const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v15';
+const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v15';
+// An offline /api snapshot older than this is not served: the app would
+// otherwise PUT back a pre-outage config and resurrect deleted messages.
+const MAX_API_CACHE_AGE_MS = 5 * 60 * 1000;
 const APP_SHELL_FILES = [
 	'/',
 	'/index.html',
@@ -22,7 +25,15 @@ self.addEventListener('install', event => {
 	event.waitUntil(
 		caches.open(STATIC_CACHE_NAME).then(cache => cache.addAll(APP_SHELL_FILES)),
 	);
-	self.skipWaiting();
+	// No skipWaiting(): the new worker parks in `waiting` so the app's
+	// "New version available — Refresh" prompt is the update path instead
+	// of the page being yanked out from under the user mid-edit.
+});
+
+self.addEventListener('message', event => {
+	// The app's "New version available — Refresh" action sends this when the
+	// user opts in, replacing the old always-on skipWaiting.
+	if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
@@ -47,16 +58,31 @@ async function networkFirstApi(request) {
 	const cache = await caches.open(DATA_CACHE_NAME);
 	try {
 		const response = await fetch(request);
-		if (response && response.ok) {
-			cache.put(request, response.clone());
+		if (response && response.ok && request.method === 'GET') {
+			const stamped = new Response(response.body, {
+				status: response.status,
+				statusText: response.statusText,
+				headers: new Headers({
+					...Object.fromEntries(response.headers),
+					'X-Cached-At': String(Date.now()),
+				}),
+			});
+			cache.put(request, stamped.clone());
+			return stamped;
 		}
 		return response;
 	} catch {
 		const cachedResponse = await cache.match(request);
-		if (cachedResponse) return cachedResponse;
+		if (cachedResponse) {
+			const stamp = Number(cachedResponse.headers.get('X-Cached-At'));
+			if (stamp && Date.now() - stamp <= MAX_API_CACHE_AGE_MS) {
+				return cachedResponse;
+			}
+		}
 		return new Response(
 			JSON.stringify({
-				error: 'Offline and no cached API response available.',
+				error: 'Offline',
+				details: 'Offline and no recent cached API response available.',
 			}),
 			{
 				status: 503,
@@ -99,7 +125,9 @@ async function cacheFirstAsset(request) {
 		}
 		return response;
 	} catch {
-		return cache.match(request, { ignoreSearch: true });
+		const retry = await cache.match(request, { ignoreSearch: true });
+		if (retry) return retry;
+		return new Response('', { status: 504 });
 	}
 }
 

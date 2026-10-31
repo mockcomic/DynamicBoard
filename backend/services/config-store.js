@@ -5,9 +5,14 @@ const { logWarn } = require('../utils/logger');
 // Resolve against the project root instead of the process cwd, so the app
 // behaves the same when launched from another directory (or as a pkg binary).
 // An explicit path can be provided via DYNAMICBOARD_CONFIG_PATH.
+// Under pkg, __dirname lives in the read-only snapshot, so default to the
+// directory beside the executable — that is the only place a packaged app
+// can bootstrap and persist its config.
 const CONFIG_PATH = process.env.DYNAMICBOARD_CONFIG_PATH
 	? path.resolve(process.env.DYNAMICBOARD_CONFIG_PATH)
-	: path.join(__dirname, '..', '..', 'config.json');
+	: process.pkg
+		? path.join(path.dirname(process.execPath), 'config.json')
+		: path.join(__dirname, '..', '..', 'config.json');
 
 const SCHEMA_VERSION = 2;
 

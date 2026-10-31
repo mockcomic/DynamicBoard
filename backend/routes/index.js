@@ -109,11 +109,13 @@ router.post('/api/send', async (req, res) => {
 			}
 		} else if (type === 'text') {
 			const msg = checkVariable(data);
-			if (!String(msg).trim()) {
+			// A template that evaluated to NaN means bad function args — and
+			// String(NaN) would sail past the empty check and print 'NaN'.
+			if (!String(msg).trim() || /NaN/.test(String(msg))) {
 				return res.status(400).json({
-					error: 'Message resolved to empty text',
+					error: 'Message could not be rendered',
 					details:
-						'Template output is empty (for example, birthday message outside the configured days-ahead window).',
+						'Template output is empty or invalid (for example a birthday date like Feb 30, or a message outside its days-ahead window).',
 				});
 			}
 			const result = await sendToVestaboard(msg, 'text');

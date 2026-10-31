@@ -53,13 +53,16 @@ function parseBooleanFlag(value) {
 function removeOuterQuotes(value) {
 	if (typeof value !== 'string') return '';
 	const trimmed = value.trim();
+	let result = trimmed;
 	if (
 		(trimmed.startsWith('"') && trimmed.endsWith('"')) ||
 		(trimmed.startsWith("'") && trimmed.endsWith("'"))
 	) {
-		return trimmed.slice(1, -1).trim();
+		result = trimmed.slice(1, -1);
 	}
-	return trimmed;
+	// Undo the \" / \' escaping the client applies so escaped quotes render
+	// as plain quotes on the board instead of literal backslashes.
+	return result.replace(/\\(["'])/g, '$1').trim();
 }
 
 function splitFunctionParams(rawParams) {
@@ -505,8 +508,14 @@ async function processEvent(messageData) {
 	if (!startRaw.isValid() || !endRaw.isValid()) return false;
 
 	// Re-stamp a date onto another year, preserving the wall-clock time in tz.
-	const withYear = (dj, year) =>
-		dayjs.tz(`${year}${dj.format('MM-DDTHH:mm')}`, tz);
+	// A Feb 29 event must not silently roll into Mar 1 in non-leap years:
+	// advance to the next year where that calendar date exists (mirrors
+	// getNextYearlyOccurrence's behavior for tillDate/birthday).
+	const withYear = (dj, year) => {
+		let y = year;
+		while (buildStrictDate(dj.month() + 1, dj.date(), y) == null) y++;
+		return dayjs.tz(`${y}${dj.format('MM-DDTHH:mm')}`, tz);
+	};
 
 	let start = startRaw;
 	let end = endRaw;
@@ -599,8 +608,8 @@ async function processMessages() {
 			const msg = checkVariable(messageData.data, {
 				repeatEveryYear: messageData?.eventData?.repeatEveryYear === true,
 			});
-			if (!String(msg).trim()) {
-				logInfo('Skipping empty rendered text message', {
+			if (!String(msg).trim() || /NaN/.test(String(msg))) {
+				logInfo('Skipping unrenderable text message', {
 					id: messageData.id,
 				});
 				idx = (idx + 1) % currentLen;

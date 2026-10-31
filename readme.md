@@ -26,7 +26,16 @@ On first run, a `config.json` file is created in the project root.
 ### Environment variables
 
 - `PORT` – HTTP port (default `4000`)
-- `DYNAMICBOARD_CONFIG_PATH` – alternate location for `config.json` (default: project root)
+- `DYNAMICBOARD_CONFIG_PATH` – alternate location for `config.json` (default: project root; beside the executable in packaged builds)
+- `DYNAMICBOARD_ALLOWED_HOSTS` – comma-separated Host names/IPs accepted on `/api` in addition to `localhost` and the detected LAN IP (DNS-rebinding protection)
+
+### Docker
+
+`config.json` is excluded from the build context (it holds your API key). Mount it instead, e.g.:
+
+```
+docker run -p 4000:4000 -v $PWD/config:/data -e DYNAMICBOARD_CONFIG_PATH=/data/config.json dynamicboard
+```
 
 ## Project Structure
 

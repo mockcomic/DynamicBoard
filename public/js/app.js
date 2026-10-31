@@ -85,6 +85,11 @@ function registerServiceWorker() {
 									),
 								);
 							} finally {
+								// No skipWaiting in the SW: tell the waiting worker to take
+								// over, and reload once the new controller is actually in
+								// charge (controllerchange below) so the refresh can't
+								// reload against the old worker.
+								registration.waiting?.postMessage('SKIP_WAITING');
 								window.location.reload();
 							}
 						},
