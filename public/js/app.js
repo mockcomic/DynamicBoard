@@ -280,14 +280,24 @@ async function getData() {
 function checkConfig(cfg) {
 	// GET /api redacts the key; the client sees hasApiKey instead of apiWriteKey.
 	const warning = document.getElementById('api-key-warning');
+	const warningText = document.getElementById('api-key-warning-text');
+	const warningBtn = document.getElementById('api-key-banner-btn');
 	const localMode = cfg.transport === 'local';
 	if (localMode) {
 		// In local mode the cloud key is irrelevant: warn only when the
-		// board or its local key is missing.
+		// board or its local key is missing, in local-terms.
 		warning.style.display =
 			!cfg.localBoard?.address || !cfg.localBoard?.hasApiKey ? 'block' : 'none';
+		if (warningText) {
+			warningText.textContent = !cfg.localBoard?.address
+				? 'Local mode needs a board: scan for boards and select one in Board Connection below.'
+				: 'The board\u2019s Local API is not enabled yet: enter the token Vestaboard emailed you in Board Connection below.';
+		}
+		if (warningBtn) warningBtn.textContent = 'Set Up Local Board';
 	} else {
 		warning.style.display = !cfg.hasApiKey || cfg.isValidKey === false ? 'block' : 'none';
+		if (warningText) warningText.textContent = 'Your API key seems to be invalid or missing.';
+		if (warningBtn) warningBtn.textContent = 'Enter API Key';
 	}
 	renderConnectionBox(cfg);
 }
@@ -750,8 +760,12 @@ async function resetApiKey(button) {
 		if (result.ok) {
 			configData.hasApiKey = false;
 			showToast('API key reset');
-			document.getElementById('api-key-warning').style.display = 'block';
-			openApiKeyModal();
+			// In local mode the cloud key is irrelevant — don't nag with the
+			// cloud banner/modal after a reset.
+			if (configData.transport !== 'local') {
+				document.getElementById('api-key-warning').style.display = 'block';
+				openApiKeyModal();
+			}
 		} else {
 			// Restore: an empty apiWriteKey in the next unrelated save (e.g.
 			// adding a message) would silently wipe the stored server key.

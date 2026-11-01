@@ -378,8 +378,16 @@ function loadConfig() {
 	try {
 		ensureConfigSync();
 		config = readConfigSync();
-		if (!config.apiWriteKey) {
-			logWarn('No API key found in config.json. Please add it.');
+		const local = config.transport === 'local';
+		const ready = local
+			? Boolean(config.localBoard?.apiKey)
+			: Boolean(config.apiWriteKey);
+		if (!ready) {
+			logWarn(
+				local
+					? 'Local transport selected but the board key is missing. Enable the Local API in Settings.'
+					: 'No API key found in config.json. Please add it.',
+			);
 		}
 		return config;
 	} catch (error) {
@@ -461,6 +469,10 @@ async function sendLocally(data, dataType) {
 
 async function sendToVestaboard(data, dataType) {
 	logInfo('Sending to Vestaboard', { type: dataType });
+	// The controller's in-memory config only lands on the 5s poll; a manual
+	// send fired in the first seconds after boot would otherwise evaluate
+	// against a null config and default to the cloud transport.
+	if (!config) config = loadConfig() || null;
 	const transport = config?.transport === 'local' ? 'local' : 'cloud';
 	if (transport === 'local') {
 		return sendLocally(data, dataType);
@@ -757,15 +769,28 @@ function reloadConfig() {
 
 	runtimeData = nextConfig;
 
-	if (!nextConfig.apiWriteKey) {
-		// Keyless: nothing to rotate to. Make sure a running loop is stopped
+	// The rotation loop needs *a usable target*, which depends on the
+	// transport: local needs the board address + local key; cloud needs the
+	// cloud write key. Judging only apiWriteKey here used to stop the loop
+	// for local-only users who never touch the cloud at all.
+	const localTransport = nextConfig.transport === 'local';
+	const readyToRotate = localTransport
+		? Boolean(nextConfig.localBoard?.address && nextConfig.localBoard?.apiKey)
+		: Boolean(nextConfig.apiWriteKey);
+
+	if (!readyToRotate) {
+		// Nothing to rotate to. Make sure a running loop is stopped
 		// so the old document isn't retried forever.
 		if (intervalId || isLooping) {
 			loopGeneration++;
 			clearTimeout(intervalId);
 			intervalId = null;
 			isLooping = false;
-			logInfo('No API key configured; message loop stopped');
+			logInfo(
+				localTransport
+					? 'No local board/key configured; message loop stopped'
+					: 'No API key configured; message loop stopped',
+			);
 		}
 		return;
 	}

@@ -81,6 +81,9 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
 	app.listen(port, () => {
 		const lanIP = get192LanIP() || '127.0.0.1';
+		// Exposed so /api/discover can fall back to the server's own /24
+		// when the caller arrived over loopback (tunnel or local proxy).
+		app.set('lanIP', lanIP);
 		logInfo('Server started', {
 			local: `http://localhost:${port}`,
 			network: `http://${lanIP}:${port}`,

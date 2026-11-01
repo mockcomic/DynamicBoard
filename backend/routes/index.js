@@ -166,9 +166,16 @@ router.post('/api/discover', async (req, res) => {
 	let subnet = String(req.body?.subnet || '').trim();
 	if (!subnet) {
 		// Default to the caller's /24: the server and its users share the LAN.
+		// A loopback caller (reverse proxy/tunnel) says nothing about the
+		// LAN, so fall back to the server's own 192.168.x /24.
 		const ip = String(req.ip || '').replace('::ffff:', '');
 		const parts = ip.split('.');
-		if (parts.length === 4) subnet = parts.slice(0, 3).join('.');
+		if (parts.length === 4 && !ip.startsWith('127.')) {
+			subnet = parts.slice(0, 3).join('.');
+		} else {
+			const own = String(req.app.get('lanIP') || '').split('.');
+			if (own.length === 4) subnet = own.slice(0, 3).join('.');
+		}
 	}
 	try {
 		const result = await discoverLocalBoards(subnet);
