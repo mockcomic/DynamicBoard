@@ -162,6 +162,18 @@ async function pushData(data) {
 }
 
 function renderMessages() {
+	// FLIP: remember where each message card currently sits, then after the
+	// list rebuilds, glide survivors from their old slot to the new one.
+	// This is the one authored motion of the list: deletes and undos show
+	// the rotation queue physically closing ranks.
+	const prevRects = new Map();
+	if (!prefersReducedMotion()) {
+		for (const el of messagesList.children) {
+			const id = el.dataset?.msgId;
+			if (id) prevRects.set(id, el.getBoundingClientRect());
+		}
+	}
+
 	messagesList.replaceChildren();
 
 	if (!Array.isArray(configData.messages) || configData.messages.length === 0) {
@@ -174,6 +186,25 @@ function renderMessages() {
 	}
 
 	configData.messages.forEach(createCard);
+
+	if (prevRects.size) {
+		for (const el of messagesList.children) {
+			const id = el.dataset?.msgId;
+			const before = prevRects.get(id);
+			if (!before) continue;
+			const after = el.getBoundingClientRect();
+			const dx = before.left - after.left;
+			const dy = before.top - after.top;
+			if (!dx && !dy) continue;
+			el.animate(
+				[
+					{ transform: `translate(${dx}px, ${dy}px)` },
+					{ transform: 'translate(0, 0)' },
+				],
+				{ duration: 320, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+			);
+		}
+	}
 }
 
 function loadData(array) {
@@ -717,8 +748,12 @@ async function deleteEntry(id, button) {
 	}
 }
 
-async function sendEntry(data, button) {
+async function sendEntry(data, button, cardEl) {
 	await withBusy(button, async () => {
+		// Start the flap choreography immediately, in parallel with the
+		// request: the card's own text flips to what the board is receiving.
+		const flap =
+			cardEl && data.type === 'text' ? playSendFlap(cardEl, String(data.data ?? data.msg ?? '')) : null;
 		try {
 			const response = await fetch(`${apiBase}/api/send`, {
 				method: 'POST',
@@ -726,17 +761,104 @@ async function sendEntry(data, button) {
 				body: JSON.stringify(data),
 			});
 			if (response.ok) {
+				if (flap) await flap.settle;
+				if (cardEl) pulseCard(cardEl);
 				showToast('Sent to board');
 			} else {
+				if (flap) flap.cancel();
 				const errorMessage = await readServerError(response);
 				log('error', 'Send failed', { status: response.status, errorMessage });
 				showToast(`Send failed: ${errorMessage}`, 'danger');
 			}
 		} catch (err) {
+			if (flap) flap.cancel();
 			log('error', 'Send failed', err);
 			showToast(`Send failed: ${err?.message || err}`, 'danger');
 		}
 	});
+}
+
+// --- Split-flap send choreography -------------------------------------
+// The physical board IS the product, so "Send" makes the card echo it:
+// every glyph column tumbles through random characters and settles on the
+// real one, left-to-right stagger, spring easing. Skipped under
+// prefers-reduced-motion; a failed send snaps the text straight back.
+function prefersReducedMotion() {
+	return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
+const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;!?-';
+
+// Success beat after the flaps land (or immediately for grid sends):
+// a short, soft breath — not a bounce.
+function pulseCard(cardEl) {
+	if (prefersReducedMotion()) return;
+	cardEl.animate(
+		[
+			{ transform: 'scale(1)', boxShadow: '0 10px 24px rgba(0,0,0,0.35)' },
+			{ transform: 'scale(1.012)', boxShadow: '0 14px 32px rgba(0,0,0,0.45)', offset: 0.4 },
+			{ transform: 'scale(1)', boxShadow: '0 10px 24px rgba(0,0,0,0.35)' },
+		],
+		{ duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+	);
+}
+
+function playSendFlap(cardEl, text) {
+	const title = cardEl?.querySelector('.flap-title');
+	if (!title || prefersReducedMotion()) return null;
+
+	const finalChars = [...title.textContent];
+	title.textContent = '';
+	const spans = finalChars.map(ch => {
+		const s = document.createElement('span');
+		s.className = 'flap-glyph';
+		s.textContent = ch === ' ' ? '\u00a0' : ch;
+		title.appendChild(s);
+		return s;
+	});
+
+	const timers = [];
+	const anims = [];
+	let cancelled = false;
+	spans.forEach((s, i) => {
+		const final = finalChars[i];
+		if (final === ' ') return; // blank flaps don't move
+		// tumble: brief random glyphs, then settle with a spring flip
+		const startDelay = 60 + i * 26;
+		const tumble = setInterval(() => {
+			s.textContent =
+				FLAP_GLYPHS[Math.floor(Math.random() * FLAP_GLYPHS.length)];
+		}, 45);
+		timers.push(tumble);
+		setTimeout(() => {
+			clearInterval(tumble);
+			if (cancelled) return;
+			s.textContent = final === ' ' ? '\u00a0' : final;
+			// settle flip: scaleY of a flipping flap, spring overshoot
+			anims.push(
+				s.animate(
+					[
+						{ transform: 'scaleY(0.05)', opacity: 0.4 },
+						{ transform: 'scaleY(1.12)', opacity: 1, offset: 0.62 },
+						{ transform: 'scaleY(1)' },
+					],
+					{ duration: 260, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
+				),
+			);
+		}, startDelay + 130 + Math.random() * 90);
+	});
+
+	const total = 60 + spans.length * 26 + 480;
+	const settle = new Promise(resolve => setTimeout(resolve, Math.min(total, 2400)));
+	return {
+		settle,
+		cancel() {
+			cancelled = true;
+			timers.forEach(clearInterval);
+			anims.forEach(a => a.cancel());
+			title.textContent = finalChars.join('');
+		},
+	};
 }
 
 function createCard(messageData) {
@@ -747,6 +869,7 @@ function createCard(messageData) {
 	card.className = eventData.isEvent
 		? 'card has-background-warning'
 		: 'card';
+	card.dataset.msgId = String(messageData.id);
 
 	const cardContent = document.createElement('div');
 	cardContent.className = 'card-content container is-fluid';
@@ -754,8 +877,11 @@ function createCard(messageData) {
 
 	const text = document.createElement('p');
 
-	text.className = 'title';
-	text.innerText = messageData.msg;
+	text.className = 'title flap-title';
+	text.innerText =
+		messageData.type === 'grid'
+			? 'Grid layout'
+			: messageData.msg;
 	cardContent.appendChild(text);
 
 	if (eventData.isEvent) {
@@ -799,7 +925,7 @@ function createCard(messageData) {
 		'button card-footer-item has-background-primary has-text-white';
 	send.innerText = 'Send to Board';
 	send.onclick = function () {
-		sendEntry(messageData, send);
+		sendEntry(messageData, send, card);
 	};
 
 	footer.append(send, del);

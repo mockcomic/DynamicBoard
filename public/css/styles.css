@@ -272,3 +272,22 @@ body {
 		width: min(360px, calc(100vw - 32px));
 	}
 }
+
+/* ---- Split-flap send choreography ---- */
+/* Each card glyph is an inline-block flap so the settle animation can
+   scale it vertically; the split-flap look is the product itself. */
+
+.flap-glyph {
+	display: inline-block;
+	will-change: transform;
+	backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* playSendFlap() skips entirely; nothing to override here, but keep
+	   FLIP-free cards honest if anything else animates them later. */
+	.card,
+	.card * {
+		animation: none !important;
+	}
+}
