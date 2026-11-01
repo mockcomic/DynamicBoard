@@ -131,13 +131,16 @@ async function discover(subnetPrefix) {
 }
 
 // Uppercase + codex map (mirrors the grid editor), greedy word-wrap across
-// the 22x6 face. Words longer than a row break mid-word. Unsupported
-// characters are reported, not silently blanked; overflow beyond 6 rows is
-// reported via `truncated`.
+// the 22x6 face. Words longer than a row break mid-word. The wrapped block
+// is CENTERED (each line horizontally, the block vertically) to match how
+// the Vestaboard cloud renders plain text — without this, messages that
+// looked right via cloud suddenly sit top-left in local mode.
+// Unsupported characters are reported, not silently blanked; overflow
+// beyond 6 rows is reported via `truncated`.
 function textToVbml(text) {
 	const unsupported = [];
 	const lines = [];
-	const pushLine = l => lines.push(l.padEnd(GRID_COLS, ' ').slice(0, GRID_COLS));
+	const pushLine = l => lines.push(l.slice(0, GRID_COLS));
 
 	for (const rawLine of String(text).split('\n')) {
 		let row = '';
@@ -174,8 +177,19 @@ function textToVbml(text) {
 		err.statusCode = 400;
 		throw err;
 	}
-	const used = lines.slice(0, GRID_ROWS);
-	const truncated = lines.length > GRID_ROWS;
+	// Center the block: pad each wrapped line horizontally, then place the
+	// block vertically mid-face (matching the cloud renderer).
+	const centered = lines.map(l => {
+		const pad = Math.max(0, Math.floor((GRID_COLS - l.length) / 2));
+		return ' '.repeat(pad) + l;
+	});
+	const used0 = centered.slice(0, GRID_ROWS);
+	const truncated = centered.length > GRID_ROWS;
+	const top = Math.floor((GRID_ROWS - used0.length) / 2);
+	const used = [
+		...Array.from({ length: top }, () => ''),
+		...used0,
+	];
 	const grid = Array.from({ length: GRID_ROWS }, (_, r) =>
 		Array.from({ length: GRID_COLS }, (_, c) => {
 			const ch = used[r]?.[c] ?? '';

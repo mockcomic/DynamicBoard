@@ -88,7 +88,7 @@ Key fields:
 2. In DynamicBoard (transport = Local): **Scan for boards** finds the board on your LAN (`POST /api/discover` probes :7000 across your /24 and keeps responders whose `Server:` header says Vestaboard), select it, paste the token, **Enable**.
 3. The app exchanges the token at the board's `/local-api/enablement` endpoint; the board replies with its **permanent local key exactly once** and the app stores it in `config.json`. Re-scans and the token expiry after enable are both non-events: the key is kept forever.
 
-Local-mode text messages are converted to the board's character codex server-side (same 22×6 grid the UI editor enforces), so unsupported characters are reported at send time rather than silently blanked.
+Local-mode text messages are converted server-side exactly the way the Vestaboard cloud renders plain text: uppercase, greedy word-wrap at 22 columns, and the wrapped block centered horizontally and vertically on the 6-row face (multi-line messages keep their line breaks, each line centered). Unsupported characters are reported at send time rather than silently blanked.
 
 Config writes are atomic (temp file + rename) and validated on `PUT /api` — malformed payloads are rejected with a 400 instead of corrupting the file.
 
