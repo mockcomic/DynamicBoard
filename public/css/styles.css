@@ -3,6 +3,9 @@
 	--panel-border: rgba(255, 255, 255, 0.1);
 	--text-strong: #f5f5f5;
 	--text-muted: #c4c4c4;
+	/* One resting shadow for every panel; the send-success pulse lifts
+	   these same numbers rather than inventing its own. */
+	--card-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 body {
@@ -30,7 +33,7 @@ body {
 	color: var(--text-strong);
 	border: 1px solid var(--panel-border);
 	border-radius: 10px;
-	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+	box-shadow: var(--card-shadow);
 }
 
 .has-background-grey-lighter {
@@ -281,6 +284,139 @@ body {
 	display: inline-block;
 	will-change: transform;
 	backface-visibility: hidden;
+}
+
+/* Card footer actions: kill Bulma's stock border (it reads as a stray
+   focus ring on the colored fills) and give the fills a hover so the
+   buttons feel live. */
+.card .card-footer-item.button {
+	border: none;
+	transition: filter 0.15s ease;
+}
+
+.card .card-footer-item.button:hover {
+	filter: brightness(1.18);
+}
+
+.card .card-footer-item.button:focus-visible {
+	outline: 2px solid #48c774;
+	outline-offset: -3px;
+}
+
+/* ---- P0 contrast: dark ink on saturated fills ----
+   White on #48c774 is ~2.4:1 and on #f14668 ~3.9:1 — both below AA for
+   button text. The yellow-card rule already used dark ink; extend the
+   same decision to the green/red fills, including the utility-class
+   combos the card footers build. Scoped to enabled, actually-filled
+   buttons: Bulma's disabled/ghost/light variants render a transparent
+   bg, where dark ink would vanish on the dark panels. */
+.button.is-primary:not(.is-light):not(.is-outlined):not(.is-ghost):not(:disabled),
+.button.is-danger:not(.is-light):not(.is-outlined):not(.is-ghost):not(:disabled),
+.button.has-background-primary,
+.button.has-background-danger,
+.button.has-background-primary.has-text-white,
+.button.has-background-danger.has-text-white {
+	color: rgba(0, 0, 0, 0.85) !important;
+}
+
+/* ---- Rotation queue cards ---- */
+/* Replaces the old inline margin that fought Bulma's card-content
+   padding. */
+.queue-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	text-align: initial;
+}
+
+.queue-list > li:not(.card) {
+	text-align: center;
+}
+
+.queue-card-content {
+	margin: 10px;
+}
+
+.queue-pos {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	margin-bottom: 0.4rem;
+	font-size: 0.75rem;
+	line-height: 1.2;
+	color: var(--text-muted);
+}
+
+.card.has-background-warning .queue-pos {
+	color: rgba(0, 0, 0, 0.6);
+}
+
+.queue-pos-num {
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+.queue-move {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.queue-move .button {
+	padding: 2px 8px;
+	height: auto;
+	font-size: 0.8rem;
+	line-height: 1.1;
+	background: rgba(255, 255, 255, 0.2);
+	color: var(--text-strong);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.card.has-background-warning .queue-move .button {
+	background: rgba(0, 0, 0, 0.08);
+	border-color: rgba(0, 0, 0, 0.25);
+}
+
+.queue-move .button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.22);
+}
+
+.queue-move .button:disabled {
+	opacity: 0.35;
+}
+
+.queue-move .button:focus-visible {
+	outline: 2px solid #48c774;
+	outline-offset: 1px;
+}
+
+/* Grid-message previews: monospace keeps the 22-col rows aligned so the
+   card shows the actual board layout instead of "Grid layout". */
+.flap-title.queue-preview-grid {
+	white-space: pre-line;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 0.9rem;
+	line-height: 1.25;
+	overflow-wrap: normal;
+	word-break: normal;
+}
+
+/* Section wrapper that is NOT a card (kills nested-cards): the inner
+   control boxes keep their panel look, the wrapper only spaces them. */
+.panel-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+	padding: 0;
+}
+
+@media (min-width: 769px) {
+	.panel-stack {
+		gap: 1.5rem;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

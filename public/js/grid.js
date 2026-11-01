@@ -46,10 +46,14 @@ function createInput(i, j) {
 	input.autocomplete = 'off';
 	input.autocapitalize = 'characters';
 	input.spellcheck = false;
-	input.setAttribute(
-		'aria-label',
-		`Row ${i + 1}, column ${j + 1} of ${gridY}, ${gridX}`,
-	);
+	const updateLabel = () =>
+		input.setAttribute(
+			'aria-label',
+			`Row ${i + 1} of ${gridY}, column ${j + 1} of ${gridX}${
+				gridData[i][j] ? `, ${gridData[i][j]}` : ', empty'
+			}`,
+		);
+	updateLabel();
 
 	input.addEventListener('keydown', function (evt) {
 		function move(ni, nj) {
@@ -60,6 +64,7 @@ function createInput(i, j) {
 			case 'Backspace':
 				input.value = '';
 				gridData[i][j] = '';
+				updateLabel();
 				if (j === 0 && i === 0) move(0, 0);
 				else if (j === 0) move(i - 1, gridX - 1);
 				else move(i, j - 1);
@@ -85,16 +90,42 @@ function createInput(i, j) {
 
 	input.addEventListener('input', function (evt) {
 		if (evt.data == null) return;
-		// Paste fires once with the whole string; keep only the first code
-		// point so the model can never hold an unsubmittable multi-char cell.
-		const ch = [...evt.data][0] ?? '';
-		// A space must clear the cell (even one that already had a char);
-		// anything else stores the character and syncs the visible input,
-		// which may still hold a pasted remainder.
-		gridData[i][j] = ch === ' ' ? '' : ch;
-		input.value = gridData[i][j];
-		var next =
-			j >= gridX - 1 ? (i >= gridY - 1 ? [0, 0] : [i + 1, 0]) : [i, j + 1];
+		// Paste fires once with the whole string. Walk it grapheme-aware
+		// (flags and emoji are multiple code points): the first grapheme
+		// fills this cell, then the remainder spills forward into the next
+		// cells with the same auto-advance, so nothing silently vanishes.
+		const graphemes = [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(evt.data)];
+		let chars = graphemes.map(g => g.segment);
+		let i0 = i;
+		let j0 = j;
+		let ch = chars.shift();
+		const set = (ni, nj, c) => {
+			gridData[ni][nj] = c === ' ' ? '' : c;
+			const el = document.getElementById(`${nj},${ni}`);
+			if (el) {
+				el.value = gridData[ni][nj];
+				el.setAttribute(
+					'aria-label',
+					`Row ${ni + 1} of ${gridY}, column ${nj + 1} of ${gridX}${
+						gridData[ni][nj] ? `, ${gridData[ni][nj]}` : ', empty'
+					}`,
+				);
+			}
+		};
+		set(i0, j0, ch);
+		while (chars.length) {
+			// advance one cell (wrap row-end -> next row start)
+			j0 += 1;
+			if (j0 >= gridX) {
+				j0 = 0;
+				i0 += 1;
+			}
+			if (i0 >= gridY) break; // past the board: stop, keep the rest typed
+			set(i0, j0, chars.shift());
+		}
+		const next =
+			j0 >= gridX - 1 ? (i0 >= gridY - 1 ? [0, 0] : [i0 + 1, 0]) : [i0, j0 + 1];
+		updateLabel();
 		var nextInput = document.getElementById(`${next[1]},${next[0]}`);
 		if (nextInput) {
 			nextInput.value = '';
@@ -119,6 +150,21 @@ export function clearGrid() {
 			gridData[i][j] = '';
 			const input = document.getElementById(`${j},${i}`);
 			if (input) input.value = '';
+		}
+	}
+}
+
+// Snapshot/restore so "Clear Grid" can be undone.
+export function snapshotGrid() {
+	return gridData.map(row => [...row]);
+}
+
+export function restoreGrid(snapshot) {
+	for (let i = 0; i < gridY; i++) {
+		for (let j = 0; j < gridX; j++) {
+			gridData[i][j] = snapshot[i]?.[j] ?? '';
+			const input = document.getElementById(`${j},${i}`);
+			if (input) input.value = gridData[i][j];
 		}
 	}
 }

@@ -94,6 +94,8 @@ function removeToast(toast) {
 export function showToast(message, type = 'success', options = {}) {
 	const toast = document.createElement('div');
 	toast.className = `notification ${TOAST_TYPE_CLASSES[type] || 'is-dark'}`;
+	// Errors interrupt the screen reader; confirmations stay polite.
+	if (type === 'danger') toast.setAttribute('role', 'alert');
 
 	const text = document.createElement('span');
 	text.className = 'toast-message';
@@ -124,7 +126,12 @@ export function showToast(message, type = 'success', options = {}) {
 	getToastContainer().appendChild(toast);
 	requestAnimationFrame(() => toast.classList.add('is-visible'));
 
-	const duration = typeof options.duration === 'number' ? options.duration : 2500;
+	const duration =
+		typeof options.duration === 'number'
+			? options.duration
+			: type === 'danger'
+				? 8000 // failures need reading time; they carry a dismiss button
+				: 2500;
 	if (duration > 0) window.setTimeout(dismiss, duration);
 
 	return dismiss;
@@ -149,14 +156,22 @@ export async function withBusy(button, run) {
 export function openModal(id) {
 	const modal = document.getElementById(id);
 	if (!modal) return;
+	modal._returnFocus = document.activeElement;
 	modal.classList.add('is-active');
 	document.documentElement.classList.add('is-clipped');
+	// Move focus into the dialog so keyboard and screen-reader users land
+	// on its content instead of staying behind the scrim.
+	const first = modal.querySelector(
+		'input, select, textarea, button:not(.modal-close):not(.delete), a[href]',
+	);
+	(first || modal.querySelector('.modal-close, .delete'))?.focus();
 }
 
 export function closeModal(id) {
 	const modal = document.getElementById(id);
 	if (!modal) return;
 	modal.classList.remove('is-active');
+	if (modal._returnFocus?.isConnected) modal._returnFocus.focus();
 	if (!document.querySelector('.modal.is-active')) {
 		document.documentElement.classList.remove('is-clipped');
 	}
@@ -175,4 +190,20 @@ export function formatDate(dateStr) {
 	const date = new Date(dateStr);
 	if (isNaN(date)) return dateStr;
 	return date.toLocaleString('en-US', { hour12: true });
+}
+
+// Day-level dates (event ranges on cards): build from the ISO parts so a
+// local-timezone offset can never flip the displayed day, and no spurious
+// "12:00:00 AM" rides along.
+export function formatEventDate(dateStr) {
+	if (!dateStr) return '';
+	const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateStr));
+	if (!m) return formatDate(dateStr);
+	const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+	if (isNaN(date)) return dateStr;
+	return date.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	});
 }

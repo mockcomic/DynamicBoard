@@ -51,7 +51,7 @@
 
 		<section id="api-key-warning" class="section pt-0" style="display: none">
 			<div class="container">
-				<div class="notification is-warning is-bold py-4 mb-0">
+				<div class="notification is-danger is-bold py-4 mb-0">
 					<p class="has-text-weight-semibold mb-3" id="api-key-warning-text">
 						Your API key seems to be invalid or missing.
 					</p>
@@ -69,7 +69,7 @@
 					<div id="grid" class="grid"></div>
 				</div>
 				<p class="help has-text-centered mt-2">
-					Click a cell to edit it, then use the buttons below to submit or
+					Click a cell to edit it, then use the buttons below to save or
 					clear the grid.
 				</p>
 			</div>
@@ -78,7 +78,7 @@
 		<!-- Control Panel Section -->
 		<section class="section">
 			<div class="container">
-				<div class="box p-5">
+				<div class="panel-stack">
 					<!-- Grid Controls -->
 					<div class="box has-background-grey-lighter">
 						<h2 class="title is-4 has-text-centered">Grid Controls</h2>
@@ -91,14 +91,14 @@
 								id="submit-grid-btn"
 								type="button"
 							>
-								Submit
+								Save Grid Message
 							</button>
 							<button
-								class="button is-warning is-rounded"
+								class="button is-light is-rounded"
 								id="clear-grid-btn"
 								type="button"
 							>
-								Clear
+								Clear Grid
 							</button>
 						</div>
 					</div>
@@ -132,7 +132,7 @@
 								type="button"
 								id="submit-text-btn"
 							>
-								Submit
+								Save Text Message
 							</button>
 							<button
 								class="button is-warning is-light is-rounded has-text-weight-semibold"
@@ -602,9 +602,9 @@
 		<!-- Messages Section -->
 		<section class="section">
 			<div class="container">
-				<h2 class="title is-4 has-text-centered mb-5">Saved Messages</h2>
+				<h2 class="title is-4 has-text-centered mb-5">Rotation Queue</h2>
 				<div class="has-text-centered">
-					<div id="messages"></div>
+					<ul id="messages" class="queue-list"></ul>
 				</div>
 			</div>
 		</section>
@@ -635,7 +635,7 @@
 					countdowns, dates, and event schedules.
 				</p>
 				<button
-					class="button is-warning is-rounded"
+					class="button is-light is-rounded"
 					id="reset-api-key-btn"
 					type="button"
 				>
@@ -645,6 +645,6 @@
 			</div>
 		</footer>
 
-		<script src="./js/app.js?v=20261016e" type="module"></script>
+		<script src="./js/app.js?v=20261102a" type="module"></script>
 	</body>
 </html>

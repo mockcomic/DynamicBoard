@@ -5,6 +5,7 @@ import {
 	consumePendingToast,
 	showToast,
 	formatDate,
+	formatEventDate,
 	openModal,
 	closeModal,
 	withBusy,
@@ -14,6 +15,8 @@ import {
 	convertData,
 	createGrid,
 	clearGrid,
+	snapshotGrid,
+	restoreGrid,
 	displayMessage,
 	findUnsupportedChars,
 	isGridEmpty,
@@ -43,13 +46,19 @@ let configData = {};
 let submitting = false;
 
 window.addEventListener('error', evt => {
-	// iOS Safari can fail silently; surface errors as a toast.
+	// iOS Safari can fail silently; surface errors as a toast. Throttle:
+	// a render loop throwing every frame must not toast-storm.
+	if (Date.now() - lastErrorToast < 3000) return;
+	lastErrorToast = Date.now();
 	const msg = evt?.error?.message || evt?.message || 'Unknown error';
 	log('error', 'Window error', msg);
 	showToast(`Error: ${msg}`, 'danger');
 });
 
+let lastErrorToast = 0;
 window.addEventListener('unhandledrejection', evt => {
+	if (Date.now() - lastErrorToast < 3000) return;
+	lastErrorToast = Date.now();
 	const msg =
 		evt?.reason?.message ||
 		(typeof evt?.reason === 'string' ? evt.reason : 'Unhandled promise error');
@@ -161,6 +170,15 @@ async function pushData(data) {
 	}
 }
 
+let msgIdSeq = 0;
+function nextMsgId() {
+	// Date.now() alone can collide for two saves in the same millisecond.
+	let id = Date.now() + Math.floor(Math.random() * 1000);
+	while (id <= msgIdSeq) id += 1;
+	msgIdSeq = id;
+	return id;
+}
+
 function renderMessages() {
 	// FLIP: remember where each message card currently sits, then after the
 	// list rebuilds, glide survivors from their old slot to the new one.
@@ -177,13 +195,20 @@ function renderMessages() {
 	messagesList.replaceChildren();
 
 	if (!Array.isArray(configData.messages) || configData.messages.length === 0) {
-		const empty = document.createElement('p');
+		const empty = document.createElement('li');
 		empty.className = 'has-text-grey';
+		empty.style.listStyle = 'none';
 		empty.textContent =
-			'No saved messages yet. Submit text or use the grid above.';
+			'Nothing queued yet. Save a text or grid message above and it will start rotating on the board.';
 		messagesList.appendChild(empty);
 		return;
 	}
+	messagesList.setAttribute(
+		'aria-label',
+		`Rotation queue, ${configData.messages.length} message${
+			configData.messages.length === 1 ? '' : 's'
+		}`,
+	);
 
 	configData.messages.forEach(createCard);
 
@@ -671,7 +696,7 @@ async function submitData(type) {
 		if (!validateScheduleForSubmit()) return;
 
 		configData.messages.push({
-			id: Date.now() + Math.floor(Math.random() * 1000),
+			id: nextMsgId(),
 			type,
 			msg,
 			data,
@@ -702,6 +727,25 @@ async function submitData(type) {
 // #endregion
 
 // #region Message Section
+// Reorder the rotation queue with optimistic save + precise rollback;
+// renderMessages' FLIP glide makes the swap legible.
+async function moveInQueue(from, to) {
+	if (!configData || from === to) return;
+	const arr = configData.messages;
+	if (to < 0 || to >= arr.length) return;
+	const [item] = arr.splice(from, 1);
+	arr.splice(to, 0, item);
+	renderMessages();
+	const result = await pushData(configData);
+	if (!result.ok) {
+		// precise rollback
+		arr.splice(to, 1);
+		arr.splice(from, 0, item);
+		renderMessages();
+		showToast(`Reorder failed: ${result.errorMessage}`, 'danger');
+	}
+}
+
 async function deleteEntry(id, button) {
 	try {
 		const index = configData.messages.findIndex(message => message.id == id);
@@ -761,7 +805,10 @@ async function sendEntry(data, button, cardEl) {
 				body: JSON.stringify(data),
 			});
 			if (response.ok) {
-				if (flap) await flap.settle;
+				// Cap the settle wait so the success beat never strands on a
+				// long title; cancel() is safe after the flaps have landed.
+				if (flap) await Promise.race([flap.settle, delay(2500)]);
+				if (flap) flap.cancel();
 				if (cardEl) pulseCard(cardEl);
 				showToast('Sent to board');
 			} else {
@@ -778,6 +825,10 @@ async function sendEntry(data, button, cardEl) {
 	});
 }
 
+function delay(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // --- Split-flap send choreography -------------------------------------
 // The physical board IS the product, so "Send" makes the card echo it:
 // every glyph column tumbles through random characters and settles on the
@@ -788,6 +839,13 @@ function prefersReducedMotion() {
 }
 
 const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;!?-';
+
+// Grapheme clusters (flags, ZWJ emoji) must flap as one unit; a
+// code-point split shatters them mid-animation.
+const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+function splitGraphemes(text) {
+	return [...segmenter.segment(text)].map(g => g.segment);
+}
 
 // Success beat after the flaps land (or immediately for grid sends):
 // a short, soft breath — not a bounce.
@@ -807,7 +865,7 @@ function playSendFlap(cardEl, text) {
 	const title = cardEl?.querySelector('.flap-title');
 	if (!title || prefersReducedMotion()) return null;
 
-	const finalChars = [...title.textContent];
+	const finalChars = splitGraphemes(title.textContent);
 	title.textContent = '';
 	const spans = finalChars.map(ch => {
 		const s = document.createElement('span');
@@ -861,27 +919,71 @@ function playSendFlap(cardEl, text) {
 	};
 }
 
-function createCard(messageData) {
+function createCard(messageData, index) {
 	// Messages written by older builds or hand-edited configs may lack
 	// eventData; a missing field must not abort the whole list render.
 	const eventData = messageData.eventData ?? {};
-	const card = document.createElement('div');
+	const card = document.createElement('li');
 	card.className = eventData.isEvent
 		? 'card has-background-warning'
 		: 'card';
 	card.dataset.msgId = String(messageData.id);
 
 	const cardContent = document.createElement('div');
-	cardContent.className = 'card-content container is-fluid';
-	cardContent.style.margin = '10px';
+	cardContent.className = 'card-content container is-fluid queue-card-content';
+
+	// Rotation position + reorder: the list IS the queue the board rotates,
+	// so every card says where it sits and lets you move it. The FLIP
+	// reflow in renderMessages makes the swap glide.
+	const total = configData.messages.length;
+	const pos = document.createElement('div');
+	pos.className = 'queue-pos';
+	const num = document.createElement('span');
+	num.className = 'queue-pos-num';
+	num.textContent = `#${index + 1} of ${total}`;
+	const move = document.createElement('span');
+	move.className = 'queue-move';
+	const mk = (label, title, disabled, fn) => {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'button is-small';
+		b.textContent = label;
+		b.setAttribute('aria-label', title);
+		b.title = title;
+		b.disabled = disabled;
+		b.onclick = fn;
+		return b;
+	};
+	move.append(
+		mk('Up', `Move message ${index + 1} up in the queue`, index === 0, () =>
+			moveInQueue(index, index - 1),
+		),
+		mk(
+			'Down',
+			`Move message ${index + 1} down in the queue`,
+			index >= total - 1,
+			() => moveInQueue(index, index + 1),
+		),
+	);
+	pos.append(num, move);
+	cardContent.appendChild(pos);
 
 	const text = document.createElement('p');
 
 	text.className = 'title flap-title';
-	text.innerText =
-		messageData.type === 'grid'
-			? 'Grid layout'
-			: messageData.msg;
+	if (messageData.type === 'grid') {
+		// Real content instead of the literal "Grid layout": msg holds the
+		// board text as saved. Trim blank trailing rows so the card stays
+		// compact while still showing what the board will display.
+		text.className += ' queue-preview-grid';
+		const rows = String(messageData.msg ?? '')
+			.split('\n')
+			.map(row => row.replace(/\s+$/, ''));
+		while (rows.length && !rows[rows.length - 1]) rows.pop();
+		text.textContent = rows.join('\n') || 'Grid layout';
+	} else {
+		text.innerText = messageData.msg;
+	}
 	cardContent.appendChild(text);
 
 	if (eventData.isEvent) {
@@ -889,19 +991,22 @@ function createCard(messageData) {
 		const dateRangeSubText = document.createElement('p');
 
 		dateRangeText.className = 'subtitle is-6 has-text-grey-dark';
+		// Dates are day-level facts: render from the ISO parts so no
+		// local-timezone shift can flip the day, and no fake midnight time.
 		dateRangeText.innerHTML = `
-			<span class="tag is-warning is-light has-text-weight-semibold" style="margin-right: 5px;">Date Range</span>
-			<span class="has-text-weight-semibold">${formatDate(
+			<span class="has-text-weight-semibold">${formatEventDate(
 				eventData.startDate,
 			)}</span>
-			<span class="has-text-grey-dark">-</span>
-			<span class="has-text-weight-semibold">${formatDate(
+			<span class="has-text-grey-dark">–</span>
+			<span class="has-text-weight-semibold">${formatEventDate(
 				eventData.endDate,
 			)}</span>
 		`;
 
 		dateRangeSubText.className = 'is-size-7 has-text-grey';
-		dateRangeSubText.innerHTML = `<span class="tag is-info is-light" style="margin-left: 5px;">Repeat Every Year: ${eventData.repeatEveryYear}</span>`;
+		dateRangeSubText.innerHTML = `<span class="tag is-info is-light">${
+			eventData.repeatEveryYear ? 'Repeats yearly' : 'One-time event'
+		}</span>`;
 
 		cardContent.appendChild(dateRangeText);
 		cardContent.appendChild(dateRangeSubText);
@@ -1091,7 +1196,7 @@ async function addBirthdayMessage(button) {
 	const birthdayTemplate = `{birthday(${args.join(',')})}`;
 
 	configData.messages.push({
-		id: Date.now() + Math.floor(Math.random() * 1000),
+		id: nextMsgId(),
 		type: 'text',
 		msg: birthdayTemplate,
 		data: birthdayTemplate,
@@ -1124,7 +1229,16 @@ document.addEventListener('DOMContentLoaded', () => {
 	const submitGridBtn = document.getElementById('submit-grid-btn');
 	submitGridBtn.onclick = () => withBusy(submitGridBtn, () => submitData('grid'));
 
-	document.getElementById('clear-grid-btn').onclick = () => clearGrid();
+	document.getElementById('clear-grid-btn').onclick = () => {
+		const before = snapshotGrid();
+		if (isGridEmpty()) return;
+		clearGrid();
+		showToast('Grid cleared', 'info', {
+			duration: 6000,
+			actionLabel: 'Undo',
+			onAction: () => restoreGrid(before),
+		});
+	};
 
 	const submitTextBtn = document.getElementById('submit-text-btn');
 	submitTextBtn.onclick = () => withBusy(submitTextBtn, () => submitData('text'));
