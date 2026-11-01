@@ -11,6 +11,10 @@ const { logInfo, logWarn } = require('../utils/logger');
 
 const BOARD_PORT = 7000;
 const PROBE_TIMEOUT_MS = 900;
+// WiFi boards in power-save mode answer the first SYN late (AP buffering +
+// cold ARP), which a single 900 ms pass can miss entirely. Hosts that didn't
+// hard-fail get one patient re-probe before they're written off.
+const RETRY_TIMEOUT_MS = 2000;
 const SEND_TIMEOUT_MS = 5000;
 const GRID_COLS = 22;
 const GRID_ROWS = 6;
@@ -23,7 +27,7 @@ const CODEX = (() => {
 	return JSON.parse(raw);
 })();
 
-function probeHost(ip) {
+function probeHost(ip, timeoutMs = PROBE_TIMEOUT_MS) {
 	return new Promise(resolve => {
 		const sock = new net.Socket();
 		let settled = false;
@@ -33,8 +37,8 @@ function probeHost(ip) {
 			sock.destroy();
 			resolve(result);
 		};
-		sock.setTimeout(PROBE_TIMEOUT_MS);
-		sock.on('timeout', () => finish(null));
+		sock.setTimeout(timeoutMs);
+		sock.on('timeout', () => finish(TIMEOUT));
 		sock.on('error', () => finish(null));
 		sock.connect(BOARD_PORT, ip, () => {
 			sock.write(
@@ -63,6 +67,16 @@ function resolveMdns(name) {
 	});
 }
 
+const TIMEOUT = Symbol('probe-timeout');
+
+// One probe with a patient retry on timeout (WiFi power-save hosts answer
+// the first SYN late); a hard connection error is definitive, no retry.
+function probeHostWithRetry(ip) {
+	return probeHost(ip).then(r =>
+		r === TIMEOUT ? probeHost(ip, RETRY_TIMEOUT_MS) : r,
+	);
+}
+
 // Only responders whose Server header says Vestaboard are offered as boards.
 function isVestaboard(serverHeader) {
 	return /^vestaboard\//i.test(serverHeader || '');
@@ -86,7 +100,9 @@ async function discover(subnetPrefix) {
 	const probes = [];
 	for (let i = 1; i <= 254; i++) {
 		const ip = `${base}.${i}`;
-		probes.push(probeHost(ip).then(r => (r ? { ip, ...r } : null)));
+		probes.push(
+			probeHostWithRetry(ip).then(r => (r && r !== TIMEOUT ? { ip, ...r } : null)),
+		);
 	}
 	const results = (await Promise.all(probes)).filter(Boolean);
 
