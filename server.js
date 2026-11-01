@@ -84,6 +84,7 @@ if (require.main === module) {
 		// Exposed so /api/discover can fall back to the server's own /24
 		// when the caller arrived over loopback (tunnel or local proxy).
 		app.set('lanIP', lanIP);
+		routes.startUpdateLoop();
 		logInfo('Server started', {
 			local: `http://localhost:${port}`,
 			network: `http://${lanIP}:${port}`,

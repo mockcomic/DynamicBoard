@@ -486,6 +486,110 @@ function wireConnectionBox() {
 
 // #endregion
 
+// #region Updates
+let updateState = null;
+
+function renderUpdateBox() {
+	const statusEl = document.getElementById('update-status');
+	const applyBtn = document.getElementById('update-apply-btn');
+	const link = document.getElementById('update-release-link');
+	if (!statusEl || !applyBtn || !link || !updateState) return;
+	const u = updateState;
+	const v = u.current;
+	if (u.disabled) {
+		statusEl.textContent = `Version ${v} — update checks disabled on this install.`;
+		applyBtn.style.display = 'none';
+		link.style.display = 'none';
+		return;
+	}
+	if (u.checking) {
+		statusEl.textContent = `Version ${v} — checking GitHub…`;
+	} else if (u.lastError && u.stale) {
+		statusEl.textContent = `Version ${v} — could not reach GitHub (${u.lastError}).`;
+	} else if (u.updateAvailable) {
+		statusEl.textContent = `Version ${v} — update available: v${u.latest}.`;
+	} else if (u.latest) {
+		statusEl.textContent = `Version ${v} — up to date.`;
+	} else {
+		statusEl.textContent = `Version ${v} — no releases found yet.`;
+	}
+	if (u.lastError && !u.stale) statusEl.textContent += ` (last check error: ${u.lastError})`;
+	applyBtn.style.display =
+		u.updateAvailable && u.canApply ? '' : 'none';
+	link.style.display = u.updateAvailable && u.releaseUrl ? '' : 'none';
+	if (u.releaseUrl) link.href = u.releaseUrl;
+}
+
+async function refreshUpdateStatus() {
+	try {
+		const res = await fetch(`${apiBase}/api/update`, { cache: 'no-store' });
+		if (res.ok) {
+			updateState = await res.json();
+			renderUpdateBox();
+		}
+	} catch {}
+}
+
+function wireUpdateBox() {
+	const checkBtn = document.getElementById('update-check-btn');
+	const applyBtn = document.getElementById('update-apply-btn');
+	if (checkBtn) {
+		checkBtn.onclick = () =>
+			withBusy(checkBtn, async () => {
+				try {
+					const res = await fetch(`${apiBase}/api/update/check`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: '{}',
+					});
+					updateState = await res.json();
+					renderUpdateBox();
+					if (!res.ok)
+						showToast(updateState.error || 'Update check failed', 'danger');
+					else if (updateState.updateAvailable)
+						showToast(`v${updateState.latest} is available`, 'info');
+					else showToast('You are on the latest version', 'info');
+				} catch (err) {
+					showToast(`Update check failed: ${err?.message || err}`, 'danger');
+				}
+			});
+	}
+	if (applyBtn) {
+		applyBtn.onclick = () =>
+			withBusy(applyBtn, async () => {
+				showToast('Downloading update… the board pauses for a moment', 'info');
+				try {
+					await fetch(`${apiBase}/api/update/apply`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: '{}',
+					});
+				} catch {}
+				// Server exits during the swap: poll until a NEW build answers
+				// (its reported current version equals the target).
+				const target = updateState?.latest;
+				let ok = false;
+				for (let i = 0; i < 60 && !ok; i++) {
+					await new Promise(r => setTimeout(r, 1000));
+					try {
+						const res = await fetch(`${apiBase}/api/update`, { cache: 'no-store' });
+						if (res.ok) {
+							const st = await res.json();
+							if (st.current === target) ok = true;
+						}
+					} catch {}
+				}
+				await refreshUpdateStatus();
+				await getData();
+				showToast(
+					ok ? 'Updated and restarted' : 'Restart not confirmed — check the server log',
+					ok ? 'success' : 'warning',
+				);
+			});
+	}
+}
+// #endregion
+
 // #region Submit
 function updateTextLength() {
 	const textInput = document.getElementById('textData');
@@ -1108,7 +1212,9 @@ function main() {
 	registerServiceWorker();
 	createGrid();
 	wireConnectionBox();
+	wireUpdateBox();
 	getData();
+	refreshUpdateStatus();
 }
 
 main();

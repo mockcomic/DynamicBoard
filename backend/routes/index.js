@@ -26,6 +26,13 @@ const {
 	enableLocalApi,
 } = require('./controller');
 
+const {
+	checkForUpdate,
+	getUpdateStatus,
+	applyUpdate,
+	startUpdateLoop,
+} = require('../services/updater');
+
 const INDEX_PATH = path.join(__dirname, '..', '..', 'public', 'index.html');
 
 router.get('/api', async (req, res) => {
@@ -236,4 +243,42 @@ router.post('/api/local/enable', async (req, res) => {
 	}
 });
 
+// --- Self-update ---
+// Cached status: never blocks on the network; the UI polls this cheaply.
+router.get('/api/update', async (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
+	res.status(200).json(getUpdateStatus());
+});
+
+// Manual "Check now": the one request-path fetch (user-initiated, rate-ok).
+router.post('/api/update/check', async (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
+	try {
+		await checkForUpdate();
+		res.status(200).json(getUpdateStatus());
+	} catch (err) {
+		logError('POST /api/update/check failed', err);
+		res.status(502).json({ error: 'Update check failed' });
+	}
+});
+
+// Binary swap + exit(0) on pkg/Linux installs; a supervisor relaunches.
+router.post('/api/update/apply', async (req, res) => {
+	res.setHeader('Cache-Control', 'no-store');
+	if (!getUpdateStatus().canApply) {
+		return res.status(400).json({
+			error:
+				'In-app update is only available on Linux packaged builds. Download the new build from the release page instead.',
+		});
+	}
+	// Reply first, then swap/exist asynchronously so the UI sees success.
+	res.status(200).json({ ok: true, restarting: true });
+	setTimeout(() => {
+		applyUpdate().catch(err => {
+			logError('Update apply failed', err);
+		});
+	}, 250);
+});
+
 module.exports = router;
+module.exports.startUpdateLoop = startUpdateLoop;

@@ -30,6 +30,27 @@ On first run, a `config.json` file is created in the project root.
 - `PORT` – HTTP port (default `4000`)
 - `DYNAMICBOARD_CONFIG_PATH` – alternate location for `config.json` (default: project root; beside the executable in packaged builds)
 - `DYNAMICBOARD_ALLOWED_HOSTS` – comma-separated Host names/IPs accepted on `/api` in addition to `localhost` and the detected LAN IP (DNS-rebinding protection)
+- `DYNAMICBOARD_DISABLE_UPDATE_CHECK` – set `1` to skip GitHub update checks entirely (air-gapped LANs)
+
+## Self-update
+
+On boot (first check after ~30 s, then every 12 h) the app queries the GitHub
+releases API for `mockcomic/DynamicBoard` and compares the latest tag against
+its bundled version. Settings shows an **Updates** box with the result and a
+"Check now" button.
+
+- **Packaged binary on Linux:** an "Update & restart" button downloads the new
+  `DynamicBoard-linux-x64` asset next to the running binary, verifies its size
+  and SHA-256 digest (from the GitHub API), atomically renames it into place,
+  and exits 0 — so run the binary under a supervisor (`systemd` unit with
+  `Restart=on-failure`/`=always`, or pm2) and the new build starts itself.
+- **Docker / plain node / macOS / Windows:** the box shows "View release" and
+  you swap the image or binary yourself; in-app apply is refused with an
+  explanation.
+- Unreachable GitHub is non-fatal: the status simply stays at the last check
+  (or "unknown") and the board keeps rotating.
+- Manual API: `GET /api/update` (cached status), `POST /api/update/check`,
+  `POST /api/update/apply`.
 
 ### Docker
 
