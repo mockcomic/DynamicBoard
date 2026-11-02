@@ -199,6 +199,9 @@ function renderMessages() {
 	}
 
 	messagesList.replaceChildren();
+	// The banner quotes the edited message's queue position, so it must
+	// refresh with every list rebuild (reorder changes the position).
+	updateEditingBanner();
 
 	if (!Array.isArray(configData.messages) || configData.messages.length === 0) {
 		const empty = document.createElement('li');
@@ -774,6 +777,10 @@ async function deleteEntry(id, button) {
 		const index = configData.messages.findIndex(message => message.id == id);
 		if (index === -1) return;
 		const [removed] = configData.messages.splice(index, 1);
+		if (editingId != null && editingId == removed.id) {
+			// the message being edited no longer exists: disarm the banner
+			editingId = null;
+		}
 
 		await withBusy(button, async () => {
 			const result = await pushData(configData);
@@ -919,10 +926,11 @@ function updateEditingBanner() {
 		banner.style.display = 'none';
 		return;
 	}
-	const m = configData.messages?.find(x => x.id == editingId);
-	text.textContent = m
-		? `Editing message #${(configData.messages.indexOf(m) || 0) + 1} — save to update it in place`
-		: 'Editing message — save to update it in place';
+	const idx = configData.messages?.findIndex(x => x.id == editingId) ?? -1;
+	text.textContent =
+		idx >= 0
+			? `Editing message #${idx + 1} — save to update it in place`
+			: 'Editing message — save to update it in place';
 	banner.style.display = '';
 }
 
