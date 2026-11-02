@@ -846,6 +846,25 @@ function prefersReducedMotion() {
 	return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
+// Quiet success feedback on a card after a send lands: one breath, no
+// letter choreography. Shadow anchors on the resting card shadow token
+// so the pulse matches the card's actual elevation.
+function pulseCard(cardEl) {
+	if (prefersReducedMotion()) return;
+	cardEl.animate(
+		[
+			{ transform: 'scale(1)', boxShadow: 'var(--card-shadow)' },
+			{
+				transform: 'scale(1.012)',
+				boxShadow: '0 14px 32px rgba(0, 0, 0, 0.45)',
+				offset: 0.4,
+			},
+			{ transform: 'scale(1)', boxShadow: 'var(--card-shadow)' },
+		],
+		{ duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+	);
+}
+
 
 // --- Edit in place -----------------------------------------------------
 // Edit loads a saved message back into the composer (grid messages into
