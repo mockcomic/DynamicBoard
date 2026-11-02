@@ -17,6 +17,7 @@ import {
 	clearGrid,
 	snapshotGrid,
 	restoreGrid,
+	setGridFromText,
 	displayMessage,
 	findUnsupportedChars,
 	isGridEmpty,
@@ -35,6 +36,7 @@ import {
 	validateScheduleForSubmit,
 	setStartNowIfRequested,
 	setScheduleRangeToAllDay,
+	loadEventData,
 } from './schedule.js';
 
 const messagesList = document.getElementById('messages');
@@ -44,6 +46,10 @@ let configData = {};
 // Prevents double-submit when Ctrl+Enter is mashed (button clicks are
 // already serialized by withBusy; the shortcut calls submitData directly).
 let submitting = false;
+// When set, the composer edits this saved message in place instead of
+// appending a new one (set by startEdit, cleared by save/cancel).
+let editingId = null;
+const composerSnapshot = { grid: null, text: '' };
 
 window.addEventListener('error', evt => {
 	// iOS Safari can fail silently; surface errors as a toast. Throttle:
@@ -695,13 +701,24 @@ async function submitData(type) {
 		syncScheduleStateFromInputs();
 		if (!validateScheduleForSubmit()) return;
 
-		configData.messages.push({
-			id: nextMsgId(),
+		const editIndex =
+			editingId != null
+				? configData.messages.findIndex(m => m.id == editingId)
+				: -1;
+		const previous = editIndex >= 0 ? configData.messages[editIndex] : null;
+		const draft = {
+			id: previous ? previous.id : nextMsgId(),
 			type,
 			msg,
 			data,
 			eventData: { ...eventData },
-		});
+		};
+		if (editIndex >= 0) {
+			// keep id and position: the queue entry holds its place in rotation
+			configData.messages[editIndex] = draft;
+		} else {
+			configData.messages.push(draft);
+		}
 
 		const result = await pushData(configData);
 		if (result.ok) {
@@ -710,10 +727,16 @@ async function submitData(type) {
 			else document.getElementById('textData').value = '';
 			updateTextLength();
 			clearScheduleSettings(false);
+			if (editIndex >= 0) {
+				editingId = null;
+				updateEditingBanner();
+			}
 			renderMessages();
-			showToast('Saved message');
+			showToast(editIndex >= 0 ? 'Message updated' : 'Saved message');
 		} else {
-			configData.messages.pop();
+			if (editIndex >= 0) configData.messages[editIndex] = previous;
+			else configData.messages.pop();
+			renderMessages();
 			showToast(`Save failed: ${result.errorMessage}`, 'danger');
 		}
 	} catch (err) {
@@ -794,10 +817,6 @@ async function deleteEntry(id, button) {
 
 async function sendEntry(data, button, cardEl) {
 	await withBusy(button, async () => {
-		// Start the flap choreography immediately, in parallel with the
-		// request: the card's own text flips to what the board is receiving.
-		const flap =
-			cardEl && data.type === 'text' ? playSendFlap(cardEl, String(data.data ?? data.msg ?? '')) : null;
 		try {
 			const response = await fetch(`${apiBase}/api/send`, {
 				method: 'POST',
@@ -805,20 +824,14 @@ async function sendEntry(data, button, cardEl) {
 				body: JSON.stringify(data),
 			});
 			if (response.ok) {
-				// Cap the settle wait so the success beat never strands on a
-				// long title; cancel() is safe after the flaps have landed.
-				if (flap) await Promise.race([flap.settle, delay(2500)]);
-				if (flap) flap.cancel();
 				if (cardEl) pulseCard(cardEl);
 				showToast('Sent to board');
 			} else {
-				if (flap) flap.cancel();
 				const errorMessage = await readServerError(response);
 				log('error', 'Send failed', { status: response.status, errorMessage });
 				showToast(`Send failed: ${errorMessage}`, 'danger');
 			}
 		} catch (err) {
-			if (flap) flap.cancel();
 			log('error', 'Send failed', err);
 			showToast(`Send failed: ${err?.message || err}`, 'danger');
 		}
@@ -829,94 +842,69 @@ function delay(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// --- Split-flap send choreography -------------------------------------
-// The physical board IS the product, so "Send" makes the card echo it:
-// every glyph column tumbles through random characters and settles on the
-// real one, left-to-right stagger, spring easing. Skipped under
-// prefers-reduced-motion; a failed send snaps the text straight back.
 function prefersReducedMotion() {
 	return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
-const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;!?-';
 
-// Grapheme clusters (flags, ZWJ emoji) must flap as one unit; a
-// code-point split shatters them mid-animation.
-const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
-function splitGraphemes(text) {
-	return [...segmenter.segment(text)].map(g => g.segment);
+// --- Edit in place -----------------------------------------------------
+// Edit loads a saved message back into the composer (grid messages into
+// the grid, text into the textarea) and arms an update instead of an
+// append. The queue keeps the entry's id and position; only content and
+// schedule change, and only after a successful save.
+function startEdit(messageData, button) {
+	if (editingId != null && editingId == messageData.id) {
+		cancelEdit();
+		return;
+	}
+	if (editingId != null) cancelEdit();
+
+	// Preserve whatever the composer held so Cancel restores it.
+	composerSnapshot.grid = snapshotGrid();
+	composerSnapshot.text = document.getElementById('textData')?.value ?? '';
+
+	if (messageData.type === 'grid') {
+		setGridFromText(messageData.msg);
+	} else {
+		const textInput = document.getElementById('textData');
+		if (textInput) textInput.value = messageData.msg;
+		updateTextLength();
+	}
+	loadEventData(messageData.eventData);
+
+	editingId = messageData.id;
+	updateEditingBanner();
+	renderMessages();
+	document
+		.getElementById('editing-banner')
+		?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// Success beat after the flaps land (or immediately for grid sends):
-// a short, soft breath — not a bounce.
-function pulseCard(cardEl) {
-	if (prefersReducedMotion()) return;
-	cardEl.animate(
-		[
-			{ transform: 'scale(1)', boxShadow: '0 10px 24px rgba(0,0,0,0.35)' },
-			{ transform: 'scale(1.012)', boxShadow: '0 14px 32px rgba(0,0,0,0.45)', offset: 0.4 },
-			{ transform: 'scale(1)', boxShadow: '0 10px 24px rgba(0,0,0,0.35)' },
-		],
-		{ duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
-	);
+function cancelEdit() {
+	if (editingId == null) return;
+	editingId = null;
+	if (composerSnapshot.grid) restoreGrid(composerSnapshot.grid);
+	const textInput = document.getElementById('textData');
+	if (textInput) textInput.value = composerSnapshot.text;
+	updateTextLength();
+	loadEventData(eventDataDefualt);
+	updateEditingBanner();
+	renderMessages();
 }
 
-function playSendFlap(cardEl, text) {
-	const title = cardEl?.querySelector('.flap-title');
-	if (!title || prefersReducedMotion()) return null;
-
-	const finalChars = splitGraphemes(title.textContent);
-	title.textContent = '';
-	const spans = finalChars.map(ch => {
-		const s = document.createElement('span');
-		s.className = 'flap-glyph';
-		s.textContent = ch === ' ' ? '\u00a0' : ch;
-		title.appendChild(s);
-		return s;
-	});
-
-	const timers = [];
-	const anims = [];
-	let cancelled = false;
-	spans.forEach((s, i) => {
-		const final = finalChars[i];
-		if (final === ' ') return; // blank flaps don't move
-		// tumble: brief random glyphs, then settle with a spring flip
-		const startDelay = 60 + i * 26;
-		const tumble = setInterval(() => {
-			s.textContent =
-				FLAP_GLYPHS[Math.floor(Math.random() * FLAP_GLYPHS.length)];
-		}, 45);
-		timers.push(tumble);
-		setTimeout(() => {
-			clearInterval(tumble);
-			if (cancelled) return;
-			s.textContent = final === ' ' ? '\u00a0' : final;
-			// settle flip: scaleY of a flipping flap, spring overshoot
-			anims.push(
-				s.animate(
-					[
-						{ transform: 'scaleY(0.05)', opacity: 0.4 },
-						{ transform: 'scaleY(1.12)', opacity: 1, offset: 0.62 },
-						{ transform: 'scaleY(1)' },
-					],
-					{ duration: 260, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
-				),
-			);
-		}, startDelay + 130 + Math.random() * 90);
-	});
-
-	const total = 60 + spans.length * 26 + 480;
-	const settle = new Promise(resolve => setTimeout(resolve, Math.min(total, 2400)));
-	return {
-		settle,
-		cancel() {
-			cancelled = true;
-			timers.forEach(clearInterval);
-			anims.forEach(a => a.cancel());
-			title.textContent = finalChars.join('');
-		},
-	};
+function updateEditingBanner() {
+	const banner = document.getElementById('editing-banner');
+	const text = document.getElementById('editing-banner-text');
+	if (!banner || !text) return;
+	if (editingId == null) {
+		banner.style.display = 'none';
+		return;
+	}
+	const m = configData.messages?.find(x => x.id == editingId);
+	text.textContent = m
+		? `Editing message #${(configData.messages.indexOf(m) || 0) + 1} — save to update it in place`
+		: 'Editing message — save to update it in place';
+	banner.style.display = '';
 }
 
 function createCard(messageData, index) {
@@ -1033,7 +1021,22 @@ function createCard(messageData, index) {
 		sendEntry(messageData, send, card);
 	};
 
-	footer.append(send, del);
+	const edit = document.createElement('button');
+	edit.type = 'button';
+	const isEditing = editingId != null && editingId == messageData.id;
+	// Bulma's bare .button is a solid white block; a filled light-info
+	// tint reads as the secondary action between Send and Delete, and
+	// solid info when this card is the one being edited.
+	edit.className = isEditing
+		? 'button card-footer-item is-info has-text-weight-semibold'
+		: 'button card-footer-item is-info is-light';
+	edit.innerText = isEditing ? 'Cancel edit' : 'Edit';
+	edit.onclick = function () {
+		if (isEditing) cancelEdit();
+		else startEdit(messageData, edit);
+	};
+
+	footer.append(send, edit, del);
 	card.append(cardContent, footer);
 	messagesList.appendChild(card);
 }
@@ -1411,6 +1414,11 @@ document.addEventListener('DOMContentLoaded', () => {
 			updateScheduleSummary();
 		});
 	});
+
+	const editingCancelBtn = document.getElementById('editing-cancel-btn');
+	if (editingCancelBtn) {
+		editingCancelBtn.onclick = cancelEdit;
+	}
 
 	const allDayInput = document.getElementById('schedule-all-day');
 	if (allDayInput) {

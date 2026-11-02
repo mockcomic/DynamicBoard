@@ -159,6 +159,31 @@ export function snapshotGrid() {
 	return gridData.map(row => [...row]);
 }
 
+// Load a saved grid message's text back into the composer cells.
+// Rows shorter than the board width are fine (blanks pad the rest);
+// a single space per cell round-trips as empty.
+export function setGridFromText(text) {
+	const rows = String(text ?? '').split('\n');
+	clearGrid();
+	for (let i = 0; i < gridY; i++) {
+		const row = rows[i] ?? '';
+		for (let j = 0; j < gridX && j < row.length; j++) {
+			const ch = row[j] === ' ' ? '' : row[j];
+			gridData[i][j] = ch;
+			const input = document.getElementById(`${j},${i}`);
+			if (input) {
+				input.value = ch;
+				input.setAttribute(
+					'aria-label',
+					`Row ${i + 1} of ${gridY}, column ${j + 1} of ${gridX}${
+						ch ? `, ${ch}` : ', empty'
+					}`,
+				);
+			}
+		}
+	}
+}
+
 export function restoreGrid(snapshot) {
 	for (let i = 0; i < gridY; i++) {
 		for (let j = 0; j < gridX; j++) {

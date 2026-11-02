@@ -10,6 +10,25 @@ export const eventDataDefualt = {
 
 export let eventData = { ...eventDataDefualt };
 
+// Load a saved message's schedule back into the composer so editing a
+// message in place preserves (or lets you change) its dates.
+export function loadEventData(next) {
+	eventData = {
+		...eventDataDefualt,
+		...(next && typeof next === 'object' ? next : {}),
+	};
+	const isEventInput = document.getElementById('toggleDateRange');
+	const repeatInput = document.getElementById('repeatEveryYear');
+	const startEl = document.getElementById('startDateText');
+	const endEl = document.getElementById('endDateText');
+	if (isEventInput) isEventInput.checked = !!eventData.isEvent;
+	if (repeatInput) repeatInput.checked = !!eventData.repeatEveryYear;
+	if (startEl) startEl.value = eventData.startDate || '';
+	if (endEl) endEl.value = eventData.endDate || '';
+	setScheduleControlsEnabled(!!eventData.isEvent);
+	updateScheduleSummary();
+}
+
 export function getDateRange() {
 	const startEl = document.getElementById('startDateText');
 	const endEl = document.getElementById('endDateText');

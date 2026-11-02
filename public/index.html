@@ -75,6 +75,31 @@
 			</div>
 		</section>
 
+		<!-- Edit-mode banner: shown while a saved message is loaded back
+		     into the composer; saving updates that message in place. -->
+		<section class="section pt-0" id="editing-banner" style="display: none">
+			<div class="container">
+				<div class="notification is-info is-light py-3 mb-0">
+					<div class="level is-mobile mb-0">
+						<div class="level-left">
+							<p class="mb-0 has-text-weight-semibold" id="editing-banner-text">
+								Editing message
+							</p>
+						</div>
+						<div class="level-right">
+							<button
+								class="button is-small"
+								id="editing-cancel-btn"
+								type="button"
+							>
+								Cancel edit
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
 		<!-- Control Panel Section -->
 		<section class="section">
 			<div class="container">
@@ -645,6 +670,6 @@
 			</div>
 		</footer>
 
-		<script src="./js/app.js?v=20261102a" type="module"></script>
+		<script src="./js/app.js?v=20261102e" type="module"></script>
 	</body>
 </html>

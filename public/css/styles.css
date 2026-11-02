@@ -280,11 +280,6 @@ body {
 /* Each card glyph is an inline-block flap so the settle animation can
    scale it vertically; the split-flap look is the product itself. */
 
-.flap-glyph {
-	display: inline-block;
-	will-change: transform;
-	backface-visibility: hidden;
-}
 
 /* Card footer actions: kill Bulma's stock border (it reads as a stray
    focus ring on the colored fills) and give the fills a hover so the
