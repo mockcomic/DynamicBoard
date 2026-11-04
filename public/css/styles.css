@@ -328,11 +328,7 @@ body {
 }
 
 .queue-list > li:not(.card) {
-	text-align: left;
-	padding: 1.1rem 1.25rem;
-	border: 1px dashed var(--panel-border);
-	border-radius: 10px;
-	color: var(--text-muted);
+	text-align: center;
 }
 
 .queue-card-content {
@@ -347,7 +343,7 @@ body {
 	margin-bottom: 0.4rem;
 	font-size: 0.75rem;
 	line-height: 1.2;
-	color: #d6d6d6;
+	color: var(--text-muted);
 }
 
 .card.has-background-warning .queue-pos {
@@ -356,8 +352,8 @@ body {
 
 .queue-pos-num {
 	font-weight: 700;
+	letter-spacing: 0.02em;
 }
-
 
 .queue-move {
 	display: inline-flex;
@@ -365,37 +361,22 @@ body {
 }
 
 .queue-move .button {
-	padding: 3px 10px;
+	padding: 2px 8px;
 	height: auto;
-	font-size: 0.72rem;
+	font-size: 0.8rem;
 	line-height: 1.1;
-	background: rgba(255, 255, 255, 0.22);
+	background: rgba(255, 255, 255, 0.2);
 	color: var(--text-strong);
-	border: 1px solid rgba(255, 255, 255, 0.4);
-}
-
-.queue-move .button:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.34);
-}
-
-/* Phones: Up/Down must survive thumb taps even though they read compact
-   on desktop. 40px minimum target, visual size unchanged. */
-@media (pointer: coarse) {
-	.queue-move .button {
-		min-height: 40px;
-		min-width: 44px;
-		padding: 0 12px;
-	}
+	border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .card.has-background-warning .queue-move .button {
 	background: rgba(0, 0, 0, 0.08);
 	border-color: rgba(0, 0, 0, 0.25);
-	color: rgba(0, 0, 0, 0.75);
 }
 
-.card.has-background-warning .queue-move .button:hover:not(:disabled) {
-	background: rgba(0, 0, 0, 0.16);
+.queue-move .button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.22);
 }
 
 .queue-move .button:disabled {
@@ -405,79 +386,6 @@ body {
 .queue-move .button:focus-visible {
 	outline: 2px solid #48c774;
 	outline-offset: 1px;
-}
-
-.queue-pos-num {
-	letter-spacing: 0.02em;
-}
-
-/* Entry-kind eyebrow: small-caps label above the position row so the
-   queue reads by kind at a glance. Weight, not size, carries it. */
-.queue-kind {
-	margin: 0 0 0.15rem;
-	font-size: 0.68rem;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-}
-
-.card.has-background-warning .queue-kind {
-	color: rgba(0, 0, 0, 0.6);
-}
-
-/* Footer actions: tinted ink keeps each action's color identity without
-   the full-saturation slab competing with the message text. Hover raises
-   the fill so the row reads as controls, not labels. */
-.card .card-footer-item.button.is-light {
-	background: rgba(255, 255, 255, 0.05);
-	border: none;
-	font-weight: 600;
-}
-
-.card .card-footer-item.button.is-light.is-primary {
-	color: #7be0a3;
-}
-
-.card .card-footer-item.button.is-light.is-primary:hover {
-	background: rgba(72, 199, 116, 0.22);
-	color: #9ee9bc;
-}
-
-.card .card-footer-item.button.is-light.is-danger {
-	color: #ff8ba1;
-	border-left: 1px solid rgba(255, 255, 255, 0.16);
-}
-
-.card .card-footer-item.button.is-light.is-danger:hover {
-	background: rgba(241, 70, 104, 0.2);
-	color: #ffa9bb;
-}
-
-.card-footer {
-	border-top: 1px solid rgba(255, 255, 255, 0.16);
-}
-
-/* Yellow event card: dark-ink actions, same decision as its text. */
-.card.has-background-warning .card-footer-item.button.is-light.is-primary {
-	color: #0a6b39;
-}
-
-.card.has-background-warning .card-footer-item.button.is-light.is-danger {
-	color: #a3243f;
-	border-left: 1px solid rgba(0, 0, 0, 0.2);
-}
-
-.card.has-background-warning .card-footer {
-	border-top: 1px solid rgba(0, 0, 0, 0.2);
-}
-
-.card.has-background-warning .card-footer-item.button.is-light.is-primary:hover {
-	background: rgba(10, 107, 57, 0.12);
-}
-
-.card.has-background-warning .card-footer-item.button.is-light.is-danger:hover {
-	background: rgba(163, 36, 63, 0.1);
 }
 
 /* Grid-message previews: monospace keeps the 22-col rows aligned so the
@@ -491,92 +399,17 @@ body {
 	word-break: normal;
 }
 
-/* ---- Composer: board + text side by side on wide screens ---- */
-
-.composer-grid {
+/* Section wrapper that is NOT a card (kills nested-cards): the inner
+   control boxes keep their panel look, the wrapper only spaces them. */
+.panel-stack {
 	display: flex;
 	flex-direction: column;
 	gap: 1.25rem;
+	padding: 0;
 }
 
-.board-actions {
-	justify-content: center;
-}
-
-/* Edit-mode banner lives inside the composer panel it applies to. */
-.edit-banner {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 0.75rem;
-	margin-top: 0.9rem;
-	padding: 0.6rem 0.85rem;
-	border: 1px solid rgba(72, 199, 116, 0.5);
-	border-radius: 8px;
-	background: rgba(72, 199, 116, 0.12);
-}
-
-/* ---- Panels: one card vocabulary for every surface on the page ----
-   Replaces the mixed box/grey-lighter/centered-heading boxes the old
-   control section used; every region is the same panel, so the page
-   reads as one system at any width. */
-.panel {
-	background: var(--panel-bg);
-	border: 1px solid var(--panel-border);
-	border-radius: 10px;
-	box-shadow: var(--card-shadow);
-	padding: 1.1rem 1.25rem;
-}
-
-.panel-title {
-	margin: 0 0 0.85rem;
-	font-size: 0.8rem;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: #d6d6d6;
-}
-
-/* Section title for the queue: left-aligned like its cards, not a
-   centered banner competing with the messages. */
-.section-title {
-	margin: 0 0 1.1rem;
-	font-size: 0.8rem;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: #d6d6d6;
-}
-
-/* ---- Utilities grid: rotation / connection / updates ---- */
-.util-grid {
-	display: flex;
-	flex-direction: column;
-	gap: 1.25rem;
-}
-
-.app-footer {
-	padding: 1.25rem 0 2rem;
-	text-align: center;
-}
-
-.build-label {
-	margin: 0;
-	font-size: 0.7rem;
-	color: #a8a8a8;
-}
-
-@media (min-width: 900px) {
-	.composer-grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr);
-		gap: 1.5rem;
-		align-items: start;
-	}
-
-	.util-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+@media (min-width: 769px) {
+	.panel-stack {
 		gap: 1.5rem;
 	}
 }

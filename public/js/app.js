@@ -970,11 +970,11 @@ function createCard(messageData, index) {
 		return b;
 	};
 	move.append(
-		mk('\u25B2', `Move message ${index + 1} up in the queue`, index === 0, () =>
+		mk('Up', `Move message ${index + 1} up in the queue`, index === 0, () =>
 			moveInQueue(index, index - 1),
 		),
 		mk(
-			'\u25BC',
+			'Down',
 			`Move message ${index + 1} down in the queue`,
 			index >= total - 1,
 			() => moveInQueue(index, index + 1),
@@ -982,16 +982,6 @@ function createCard(messageData, index) {
 	);
 	pos.append(num, move);
 	cardContent.appendChild(pos);
-
-	// Entry kind, but only when it is not the default: a plain-text tag
-	// repeated on every card is noise; Grid and Event change what the
-	// card shows, so they say so.
-	if (eventData.isEvent || messageData.type === 'grid') {
-		const eyebrow = document.createElement('p');
-		eyebrow.className = 'queue-kind';
-		eyebrow.textContent = eventData.isEvent ? 'Event' : 'Grid';
-		cardContent.appendChild(eyebrow);
-	}
 
 	const text = document.createElement('p');
 
@@ -1005,12 +995,7 @@ function createCard(messageData, index) {
 			.split('\n')
 			.map(row => row.replace(/\s+$/, ''));
 		while (rows.length && !rows[rows.length - 1]) rows.pop();
-		// Board is 6 rows; the card only needs the first three to be
-		// recognizable, and the ellipsis row says there is more.
-		text.textContent =
-			rows.length > 3
-				? rows.slice(0, 3).join('\n') + '\n\u22EF'
-				: rows.join('\n') || 'Grid layout';
+		text.textContent = rows.join('\n') || 'Grid layout';
 	} else {
 		text.innerText = messageData.msg;
 	}
@@ -1023,14 +1008,15 @@ function createCard(messageData, index) {
 		dateRangeText.className = 'subtitle is-6 has-text-grey-dark';
 		// Dates are day-level facts: render from the ISO parts so no
 		// local-timezone shift can flip the day, and no fake midnight time.
-		const start = formatEventDate(eventData.startDate);
-		const end = formatEventDate(eventData.endDate);
-		// A one-day event says its date once; "Dec 12 – Dec 12" is noise.
-		dateRangeText.innerHTML = `<span class="has-text-weight-semibold">${start}</span>${
-			end && end !== start
-				? `<span class="has-text-grey-dark">\u2013</span><span class="has-text-weight-semibold">${end}</span>`
-				: ''
-		}`;
+		dateRangeText.innerHTML = `
+			<span class="has-text-weight-semibold">${formatEventDate(
+				eventData.startDate,
+			)}</span>
+			<span class="has-text-grey-dark">–</span>
+			<span class="has-text-weight-semibold">${formatEventDate(
+				eventData.endDate,
+			)}</span>
+		`;
 
 		dateRangeSubText.className = 'is-size-7 has-text-grey';
 		dateRangeSubText.innerHTML = `<span class="tag is-info is-light">${
@@ -1046,7 +1032,8 @@ function createCard(messageData, index) {
 
 	const del = document.createElement('button');
 	del.type = 'button';
-	del.className = 'button is-light is-danger card-footer-item';
+	del.className =
+		'button card-footer-item has-background-danger has-text-white';
 	del.innerText = 'Delete';
 	del.onclick = function () {
 		deleteEntry(messageData.id, del);
@@ -1054,7 +1041,8 @@ function createCard(messageData, index) {
 
 	const send = document.createElement('button');
 	send.type = 'button';
-	send.className = 'button is-light is-primary card-footer-item';
+	send.className =
+		'button card-footer-item has-background-primary has-text-white';
 	send.innerText = 'Send to Board';
 	send.onclick = function () {
 		sendEntry(messageData, send, card);
