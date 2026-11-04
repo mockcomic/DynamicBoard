@@ -1048,22 +1048,11 @@ function createCard(messageData, index) {
 		sendEntry(messageData, send, card);
 	};
 
-	const edit = document.createElement('button');
-	edit.type = 'button';
-	const isEditing = editingId != null && editingId == messageData.id;
-	// Bulma's bare .button is a solid white block; a filled light-info
-	// tint reads as the secondary action between Send and Delete, and
-	// solid info when this card is the one being edited.
-	edit.className = isEditing
-		? 'button card-footer-item is-info has-text-weight-semibold'
-		: 'button card-footer-item is-info is-light';
-	edit.innerText = isEditing ? 'Cancel edit' : 'Edit';
-	edit.onclick = function () {
-		if (isEditing) cancelEdit();
-		else startEdit(messageData, edit);
-	};
+	// The Edit button is removed for now; the edit-in-place machinery
+	// (startEdit/cancelEdit/banner, editingId replace-on-save) stays in
+	// place so it can be re-surfaced later without re-implementing it.
 
-	footer.append(send, edit, del);
+	footer.append(send, del);
 	card.append(cardContent, footer);
 	messagesList.appendChild(card);
 }
