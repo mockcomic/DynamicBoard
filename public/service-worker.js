@@ -1,4 +1,4 @@
-const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v28';
+const STATIC_CACHE_NAME = 'DynamicBoard-static-cache-v29';
 const DATA_CACHE_NAME = 'DynamicBoard-data-cache-v27';
 // An offline /api snapshot older than this is not served: the app would
 // otherwise PUT back a pre-outage config and resurrect deleted messages.

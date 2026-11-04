@@ -343,7 +343,7 @@ body {
 	margin-bottom: 0.4rem;
 	font-size: 0.75rem;
 	line-height: 1.2;
-	color: var(--text-muted);
+	color: #d6d6d6;
 }
 
 .card.has-background-warning .queue-pos {
@@ -352,8 +352,8 @@ body {
 
 .queue-pos-num {
 	font-weight: 700;
-	letter-spacing: 0.02em;
 }
+
 
 .queue-move {
 	display: inline-flex;
@@ -361,22 +361,37 @@ body {
 }
 
 .queue-move .button {
-	padding: 2px 8px;
+	padding: 3px 10px;
 	height: auto;
-	font-size: 0.8rem;
+	font-size: 0.72rem;
 	line-height: 1.1;
-	background: rgba(255, 255, 255, 0.2);
+	background: rgba(255, 255, 255, 0.22);
 	color: var(--text-strong);
-	border: 1px solid rgba(255, 255, 255, 0.3);
+	border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.queue-move .button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.34);
+}
+
+/* Phones: Up/Down must survive thumb taps even though they read compact
+   on desktop. 40px minimum target, visual size unchanged. */
+@media (pointer: coarse) {
+	.queue-move .button {
+		min-height: 40px;
+		min-width: 44px;
+		padding: 0 12px;
+	}
 }
 
 .card.has-background-warning .queue-move .button {
 	background: rgba(0, 0, 0, 0.08);
 	border-color: rgba(0, 0, 0, 0.25);
+	color: rgba(0, 0, 0, 0.75);
 }
 
-.queue-move .button:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.22);
+.card.has-background-warning .queue-move .button:hover:not(:disabled) {
+	background: rgba(0, 0, 0, 0.16);
 }
 
 .queue-move .button:disabled {
@@ -386,6 +401,79 @@ body {
 .queue-move .button:focus-visible {
 	outline: 2px solid #48c774;
 	outline-offset: 1px;
+}
+
+.queue-pos-num {
+	letter-spacing: 0.02em;
+}
+
+/* Entry-kind eyebrow: small-caps label above the position row so the
+   queue reads by kind at a glance. Weight, not size, carries it. */
+.queue-kind {
+	margin: 0 0 0.15rem;
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.card.has-background-warning .queue-kind {
+	color: rgba(0, 0, 0, 0.6);
+}
+
+/* Footer actions: tinted ink keeps each action's color identity without
+   the full-saturation slab competing with the message text. Hover raises
+   the fill so the row reads as controls, not labels. */
+.card .card-footer-item.button.is-light {
+	background: rgba(255, 255, 255, 0.05);
+	border: none;
+	font-weight: 600;
+}
+
+.card .card-footer-item.button.is-light.is-primary {
+	color: #7be0a3;
+}
+
+.card .card-footer-item.button.is-light.is-primary:hover {
+	background: rgba(72, 199, 116, 0.22);
+	color: #9ee9bc;
+}
+
+.card .card-footer-item.button.is-light.is-danger {
+	color: #ff8ba1;
+	border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.card .card-footer-item.button.is-light.is-danger:hover {
+	background: rgba(241, 70, 104, 0.2);
+	color: #ffa9bb;
+}
+
+.card-footer {
+	border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* Yellow event card: dark-ink actions, same decision as its text. */
+.card.has-background-warning .card-footer-item.button.is-light.is-primary {
+	color: #0a6b39;
+}
+
+.card.has-background-warning .card-footer-item.button.is-light.is-danger {
+	color: #a3243f;
+	border-left: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.card.has-background-warning .card-footer {
+	border-top: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.card.has-background-warning .card-footer-item.button.is-light.is-primary:hover {
+	background: rgba(10, 107, 57, 0.12);
+}
+
+.card.has-background-warning .card-footer-item.button.is-light.is-danger:hover {
+	background: rgba(163, 36, 63, 0.1);
 }
 
 /* Grid-message previews: monospace keeps the 22-col rows aligned so the
