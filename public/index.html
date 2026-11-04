@@ -23,7 +23,7 @@
 			rel="stylesheet"
 			href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
 		/>
-		<link rel="stylesheet" href="./css/styles.css?v=20261104a" />
+		<link rel="stylesheet" href="./css/styles.css?v=20261104d" />
 		<link rel="manifest" href="/manifest.json" />
 	</head>
 
@@ -62,247 +62,101 @@
 			</div>
 		</section>
 
-		<!-- Grid Section -->
-		<section class="section pt-4 pb-4">
-			<div class="container">
-				<div class="grid-viewport">
-					<div id="grid" class="grid"></div>
-				</div>
-				<p class="help has-text-centered mt-2">
-					Click a cell to edit it, then use the buttons below to save or
-					clear the grid.
-				</p>
-			</div>
-		</section>
-
-		<!-- Edit-mode banner: shown while a saved message is loaded back
-		     into the composer; saving updates that message in place. -->
-		<section class="section pt-0" id="editing-banner" style="display: none">
-			<div class="container">
-				<div class="notification is-info is-light py-3 mb-0">
-					<div class="level is-mobile mb-0">
-						<div class="level-left">
-							<p class="mb-0 has-text-weight-semibold" id="editing-banner-text">
-								Editing message
-							</p>
-						</div>
-						<div class="level-right">
-							<button
-								class="button is-small"
-								id="editing-cancel-btn"
-								type="button"
-							>
-								Cancel edit
-							</button>
-						</div>
+		<!-- Compose: one workspace. The board preview and the two ways of
+		     filling it sit side by side on wide screens; the grid actions
+		     live under the board, the text tools under their column. -->
+		<section class="section composer-section">
+			<div class="container composer-grid">
+				<div class="panel board-panel">
+					<h2 class="panel-title">Board preview</h2>
+					<div class="grid-viewport">
+						<div id="grid" class="grid"></div>
 					</div>
-				</div>
-			</div>
-		</section>
-
-		<!-- Control Panel Section -->
-		<section class="section">
-			<div class="container">
-				<div class="panel-stack">
-					<!-- Grid Controls -->
-					<div class="box has-background-grey-lighter">
-						<h2 class="title is-4 has-text-centered">Grid Controls</h2>
-						<p class="help has-text-centered quick-hint">
-							Tip: while focused on the grid, press Ctrl+Enter to submit.
-						</p>
-						<div class="buttons is-centered mt-4">
-							<button
-								class="button is-primary is-rounded"
-								id="submit-grid-btn"
-								type="button"
-							>
-								Save Grid Message
-							</button>
-							<button
-								class="button is-light is-rounded"
-								id="clear-grid-btn"
-								type="button"
-							>
-								Clear Grid
-							</button>
-						</div>
-					</div>
-
-					<!-- Auto Text Formatting -->
-					<div class="box has-background-grey-lighter">
-						<h2 class="title is-4 has-text-centered">Auto Text Formatting</h2>
-						<div class="field">
-							<div class="control">
-								<textarea
-									id="textData"
-									class="textarea is-primary"
-									placeholder="Enter text to auto format"
-									rows="3"
-								></textarea>
-							</div>
-							<div class="level is-mobile text-meta mt-2 mb-0">
-								<div class="level-left">
-									<p class="help mb-0">Shortcut: Ctrl+Enter to submit text</p>
-								</div>
-								<div class="level-right">
-									<p class="help mb-0" id="text-length">0 chars</p>
-								</div>
-							</div>
-						</div>
-						<div
-							class="buttons is-centered is-flex-wrap-wrap mt-4 text-action-buttons"
-						>
-							<button
-								class="button is-primary is-rounded has-text-weight-semibold"
-								type="button"
-								id="submit-text-btn"
-							>
-								Save Text Message
-							</button>
-							<button
-								class="button is-warning is-light is-rounded has-text-weight-semibold"
-								type="button"
-								id="schedule-btn"
-							>
-								Schedule
-							</button>
-							<button
-								class="button is-link is-light is-rounded has-text-weight-semibold"
-								type="button"
-								id="add-birthday-btn"
-							>
-								Add Birthday
-							</button>
-						</div>
-						<p
-							class="help has-text-centered mt-2 schedule-summary"
-							id="schedule-summary"
-						>
-							No schedule set for next message.
-						</p>
-					</div>
-				</div>
-
-				<!-- Timer Input -->
-				<div class="box has-text-centered">
-					<p class="title is-6 mb-3">Board Rotation</p>
-					<div class="field has-addons is-justify-content-center mb-3">
-						<div class="control">
-							<input
-								type="number"
-								id="timerInput"
-								min="1"
-								class="input"
-								placeholder="Minutes"
-								aria-label="Rotation interval in minutes"
-								style="width: 120px"
-							/>
-						</div>
-						<div class="control">
-							<button id="timerInput-btn" class="button is-primary" type="button">
-								Update Interval
-							</button>
-						</div>
-					</div>
-					<p class="help mt-0">How often messages rotate on the board.</p>
-					<div class="field is-grouped is-justify-content-center">
-						<div class="control">
-							<label class="checkbox is-size-5">
-								<input type="checkbox" id="isEnabled" class="mr-2" />
-								Enabled
-							</label>
-						</div>
-					</div>
-				</div>
-
-				<!-- Board connection: cloud vs local LAN -->
-				<div class="box" id="connection-box">
-					<p class="title is-6 mb-3">Board Connection</p>
-					<div class="field">
-						<div class="control">
-							<label class="radio">
-								<input type="radio" name="transport" id="transport-cloud" value="cloud" />
-								Vestaboard Cloud
-							</label>
-							<label class="radio ml-4">
-								<input type="radio" name="transport" id="transport-local" value="local" />
-								Local network (no cloud)
-							</label>
-						</div>
-					</div>
-					<div id="local-board-controls" style="display:none">
-						<div class="field has-addons">
-							<div class="control is-expanded">
-								<input
-									class="input is-small"
-									id="local-board-address"
-									type="text"
-									placeholder="Board IP or vestaboard.local"
-									autocomplete="off"
-									aria-label="Board address"
-								/>
-							</div>
-							<div class="control">
-								<button class="button is-small is-info" id="discover-btn" type="button">
-									Scan for boards
-								</button>
-							</div>
-						</div>
-						<div id="discover-results" class="mb-2" role="status"></div>
-						<div id="local-enable-row" class="field has-addons" style="display:none">
-							<div class="control is-expanded">
-								<input
-									class="input is-small"
-									id="local-enable-token"
-									type="password"
-									placeholder="Local API enablement token (from Vestaboard email)"
-									autocomplete="off"
-									aria-label="Local API enablement token"
-								/>
-							</div>
-							<div class="control">
-								<button class="button is-small is-primary" id="local-enable-btn" type="button">
-									Enable
-								</button>
-							</div>
-						</div>
-						<p class="help" id="local-board-status"></p>
-						<p class="help">
-							Scans your network for Vestaboards (port 7000). The Local API
-							needs a one-time enablement token from Vestaboard:
-							docs.vestaboard.com → Local API. The key stays on this server.
-						</p>
-					</div>
-				</div>
-
-				<!-- Updates -->
-				<div class="box" id="update-box">
-					<p class="title is-6 mb-3">Updates</p>
-					<p class="help mb-2" id="update-status">
-						Checking for updates…
+					<p class="help mt-2">
+						Click a cell to edit it, then save the grid as a message.
+						Shortcut: Ctrl+Enter while the grid has focus.
 					</p>
-					<div class="buttons mb-0">
-						<button class="button is-small" id="update-check-btn" type="button">
-							Check now
+					<div class="buttons mt-3 mb-0 board-actions">
+						<button
+							class="button is-primary is-rounded"
+							id="submit-grid-btn"
+							type="button"
+						>
+							Save Grid Message
 						</button>
 						<button
-							class="button is-small is-primary"
-							id="update-apply-btn"
+							class="button is-light is-rounded"
+							id="clear-grid-btn"
 							type="button"
-							style="display: none"
 						>
-							Update &amp; restart
+							Clear Grid
 						</button>
-						<a
-							class="button is-small is-ghost"
-							id="update-release-link"
-							href="#"
-							target="_blank"
-							rel="noopener"
-							style="display: none"
-							>View release</a
-						>
 					</div>
+					<!-- Edit-mode banner: shown while a saved message is
+					     loaded back into the composer; saving updates that
+					     message in place. -->
+					<div class="edit-banner" id="editing-banner" style="display: none">
+						<p class="mb-0 has-text-weight-semibold" id="editing-banner-text">
+							Editing message
+						</p>
+						<button
+							class="button is-small"
+							id="editing-cancel-btn"
+							type="button"
+						>
+							Cancel edit
+						</button>
+					</div>
+				</div>
+
+				<div class="panel text-panel">
+					<h2 class="panel-title">Send as text</h2>
+					<div class="field">
+						<div class="control">
+							<textarea
+								id="textData"
+								class="textarea is-primary"
+								placeholder="Enter text to auto format"
+								rows="3"
+							></textarea>
+						</div>
+						<div class="level is-mobile text-meta mt-2 mb-0">
+							<div class="level-left">
+								<p class="help mb-0">Shortcut: Ctrl+Enter to submit text</p>
+							</div>
+							<div class="level-right">
+								<p class="help mb-0" id="text-length">0 chars</p>
+							</div>
+						</div>
+					</div>
+					<div
+						class="buttons is-flex-wrap-wrap mt-3 mb-0 text-action-buttons"
+					>
+						<button
+							class="button is-primary is-rounded has-text-weight-semibold"
+							type="button"
+							id="submit-text-btn"
+						>
+							Save Text Message
+						</button>
+						<button
+							class="button is-light is-rounded has-text-weight-semibold"
+							type="button"
+							id="schedule-btn"
+						>
+							Schedule
+						</button>
+						<button
+							class="button is-light is-rounded has-text-weight-semibold"
+							type="button"
+							id="add-birthday-btn"
+						>
+							Add Birthday
+						</button>
+					</div>
+					<p class="help mt-3 mb-0 schedule-summary" id="schedule-summary">
+						No schedule set for next message.
+					</p>
 				</div>
 			</div>
 		</section>
@@ -624,52 +478,172 @@
 			</div>
 		</div>
 
-		<!-- Messages Section -->
-		<section class="section">
+		<!-- Rotation Queue: the list IS the product's loop, so it sits
+		     center-stage directly under the composer. -->
+		<section class="section queue-section">
 			<div class="container">
-				<h2 class="title is-4 has-text-centered mb-5">Rotation Queue</h2>
-				<div class="has-text-centered">
-					<ul id="messages" class="queue-list"></ul>
+				<h2 class="section-title">Rotation Queue</h2>
+				<ul id="messages" class="queue-list"></ul>
+			</div>
+		</section>
+
+		<!-- Utilities: settings live below the fold in one consistent panel
+		     grid, not ad-hoc boxes. -->
+		<section class="section util-section">
+			<div class="container util-grid">
+				<div class="panel">
+					<h2 class="panel-title">Rotation</h2>
+					<div class="field has-addons mb-3">
+						<div class="control">
+							<input
+								type="number"
+								id="timerInput"
+								min="1"
+								class="input"
+								placeholder="Minutes"
+								aria-label="Rotation interval in minutes"
+								style="width: 170px"
+							/>
+						</div>
+						<div class="control">
+							<button id="timerInput-btn" class="button is-primary" type="button">
+								Update Interval
+							</button>
+						</div>
+					</div>
+					<label class="checkbox">
+						<input type="checkbox" id="isEnabled" class="mr-2" />
+						Rotate messages automatically
+					</label>
+					<p class="help mt-2">How often messages rotate on the board.</p>
+				</div>
+
+				<div class="panel" id="connection-box">
+					<h2 class="panel-title">Board connection</h2>
+					<div class="field">
+						<div class="control">
+							<label class="radio">
+								<input type="radio" name="transport" id="transport-cloud" value="cloud" />
+								Vestaboard Cloud
+							</label>
+							<label class="radio ml-4">
+								<input type="radio" name="transport" id="transport-local" value="local" />
+								Local network (no cloud)
+							</label>
+						</div>
+					</div>
+					<div id="local-board-controls" style="display:none">
+						<div class="field has-addons">
+							<div class="control is-expanded">
+								<input
+									class="input is-small"
+									id="local-board-address"
+									type="text"
+									placeholder="Board IP or vestaboard.local"
+									autocomplete="off"
+									aria-label="Board address"
+								/>
+							</div>
+							<div class="control">
+								<button class="button is-small is-info" id="discover-btn" type="button">
+									Scan for boards
+								</button>
+							</div>
+						</div>
+						<div id="discover-results" class="mb-2" role="status"></div>
+						<div id="local-enable-row" class="field has-addons" style="display:none">
+							<div class="control is-expanded">
+								<input
+									class="input is-small"
+									id="local-enable-token"
+									type="password"
+									placeholder="Local API enablement token (from Vestaboard email)"
+									autocomplete="off"
+									aria-label="Local API enablement token"
+								/>
+							</div>
+							<div class="control">
+								<button class="button is-small is-primary" id="local-enable-btn" type="button">
+									Enable
+								</button>
+							</div>
+						</div>
+						<p class="help" id="local-board-status"></p>
+						<p class="help">
+							Scans your network for Vestaboards (port 7000). The Local API
+							needs a one-time enablement token from Vestaboard:
+							docs.vestaboard.com → Local API. The key stays on this server.
+						</p>
+					</div>
+					<div class="field mt-3">
+						<div class="label">Time zone</div>
+						<div class="field has-addons">
+							<div class="control is-expanded">
+								<input
+									class="input is-small"
+									id="timezone-input"
+									type="text"
+									placeholder="e.g. America/Los_Angeles"
+									autocomplete="off"
+								/>
+							</div>
+							<div class="control">
+								<button class="button is-small is-primary" id="timezone-save-btn">
+									Save
+								</button>
+							</div>
+						</div>
+						<p class="help">
+							Leave empty to use the server's local time zone. Affects
+							birthdays, countdowns, dates, and event schedules.
+						</p>
+					</div>
+					<button
+						class="button is-small is-light is-rounded mt-2"
+						id="reset-api-key-btn"
+						type="button"
+					>
+						Reset API Key
+					</button>
+				</div>
+
+				<div class="panel" id="update-box">
+					<h2 class="panel-title">Updates</h2>
+					<p class="help mb-2" id="update-status">
+						Checking for updates…
+					</p>
+					<div class="buttons mb-0">
+						<button class="button is-small" id="update-check-btn" type="button">
+							Check now
+						</button>
+						<button
+							class="button is-small is-primary"
+							id="update-apply-btn"
+							type="button"
+							style="display: none"
+						>
+							Update &amp; restart
+						</button>
+						<a
+							class="button is-small is-ghost"
+							id="update-release-link"
+							href="#"
+							target="_blank"
+							rel="noopener"
+							style="display: none"
+							>View release</a
+						>
+					</div>
 				</div>
 			</div>
 		</section>
 
-		<footer class="has-text-centered">
+		<footer class="app-footer">
 			<div class="container">
-				<div
-					class="field has-addons is-centered"
-					style="max-width: 480px; margin: 0 auto 0.75rem"
-				>
-					<div class="control is-expanded">
-						<input
-							class="input is-small"
-							id="timezone-input"
-							type="text"
-							placeholder="Time zone (e.g. America/Los_Angeles)"
-							autocomplete="off"
-						/>
-					</div>
-					<div class="control">
-						<button class="button is-small is-primary" id="timezone-save-btn">
-							Save Time Zone
-						</button>
-					</div>
-				</div>
-				<p class="is-size-7 has-text-grey mb-3">
-					Leave empty to use the server's local time zone. Affects birthdays,
-					countdowns, dates, and event schedules.
-				</p>
-				<button
-					class="button is-light is-rounded"
-					id="reset-api-key-btn"
-					type="button"
-				>
-					Reset API Key
-				</button>
-				<p class="is-size-7 has-text-grey-light mt-2">Build 20261104a</p>
+				<p class="build-label">Build 20261104a</p>
 			</div>
 		</footer>
 
-		<script src="./js/app.js?v=20261104b" type="module"></script>
+		<script src="./js/app.js?v=20261104d" type="module"></script>
 	</body>
 </html>
